@@ -8,9 +8,14 @@ REQUIRED = (
     "NEON_DATABASE_URL",
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_CHAT_ID",
+    "TRIGGER_SECRET",           # shared secret for /trigger endpoints
+)
+
+# P3: Upstox token is the FALLBACK path (public fetch is primary, verified
+# after close 2026-09-10). Empty is valid — morning.py falls back only if set.
+OPTIONAL = (
     "UPSTOX_ACCESS_TOKEN",
     "UPSTOX_TOKEN_GENERATED",   # YYYY-MM-DD, for T-30d expiry alerts
-    "TRIGGER_SECRET",           # shared secret for /trigger endpoints
 )
 
 
@@ -25,4 +30,6 @@ def load(strict: bool = True) -> dict[str, str]:
             "missing required environment variables: " + ", ".join(missing)
             + " (see .env.example; on Render set them as secret env vars)"
         )
-    return {k: os.environ.get(k, "").strip() for k in REQUIRED}
+    cfg = {k: os.environ.get(k, "").strip() for k in REQUIRED}
+    cfg.update({k: os.environ.get(k, "").strip() for k in OPTIONAL})  # "" = unset
+    return cfg

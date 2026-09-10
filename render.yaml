@@ -1,0 +1,23 @@
+# Render blueprint — KAVACH-945 scanner (free plan)
+# Render reads this file when you click "New +" -> "Blueprint" on the repo.
+services:
+  - type: web
+    name: kavach-scanner
+    runtime: docker          # uses ./Dockerfile
+    plan: free
+    region: singapore        # closest to NSE/Neon (Mumbai not on free tier)
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NEON_DATABASE_URL     # paste from the Neon dashboard (connection string)
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN    # from @BotFather
+        sync: false
+      - key: TELEGRAM_CHAT_ID      # your chat id
+        sync: false
+      - key: TRIGGER_SECRET        # any long random string YOU invent (cron-job.org sends it)
+        sync: false
+      - key: UPSTOX_ACCESS_TOKEN   # OPTIONAL (fallback path; empty = public fetch only)
+        sync: false
+      - key: UPSTOX_TOKEN_GENERATED  # OPTIONAL, YYYY-MM-DD you created the token
+        sync: false
