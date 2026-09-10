@@ -21,7 +21,7 @@ class FakeStore:
 
     def claim_job(self, conn, job, dkey, max_attempts=3, stale_min=15):
         rec = self.jobs.setdefault((job, dkey), {"state": "pending", "attempts": 0})
-        if rec["state"] in ("done", "skipped"):
+        if rec["state"] == "done":               # P4-01: only done is terminal
             return "skip-done"
         if rec["state"] == "running":
             return "skip-running"
@@ -37,6 +37,8 @@ class FakeStore:
     def finish_job(self, conn, job, dkey, state, detail=None):
         self.jobs[(job, dkey)]["state"] = state
         self.jobs[(job, dkey)]["detail"] = detail
+        if state == "skipped":                   # P4-01: skips are free
+            self.jobs[(job, dkey)]["attempts"] = 0
 
     def log_alert(self, conn, dkey, severity, message, delivered):
         self.alerts.append((dkey, severity, message, delivered))
@@ -91,3 +93,51 @@ def test_heartbeat_runs_during_long_job():
     jobs.run_job("t5", slow, store=fs, hb_every=0.05)
     assert fs.heartbeats >= 2                    # beats happened while fn ran
     assert time.time() - t0 < 5                  # and it terminated promptly
+
+
+# ============================================ P4-01: skips are re-triggerable
+def test_skip_then_retrigger_runs_again():
+    """The 09:44 wake ping's 'too-early' skip must NOT block the 09:46 run."""
+    fs = FakeStore()
+    calls = []
+
+    def job_skip_then_done(ctx):
+        calls.append(1)
+        if len(calls) == 1:
+            return "skipped:too-early (09:40 bar not final until 09:45:40)"
+        return "done:2 signals, 0 no-data"
+
+    assert jobs.run_job("morning", job_skip_then_done, store=fs, hb_every=999) == "skipped"
+    assert jobs.run_job("morning", job_skip_then_done, store=fs, hb_every=999) == "done", \
+        "re-trigger after a skip MUST run the real job (P4-01)"
+    assert jobs.run_job("morning", job_skip_then_done, store=fs, hb_every=999) == "skip-done"
+
+
+def test_skips_do_not_consume_failure_budget():
+    fs = FakeStore()
+    n = {"k": 0}
+
+    def always_skip(ctx):
+        n["k"] += 1
+        return "skipped:not-posted-yet"
+
+    for _ in range(8):                          # evening ladder has 5 rungs
+        assert jobs.run_job("evening", always_skip, store=fs, hb_every=999) == "skipped"
+    assert n["k"] == 8, "8 benign skips later the job must STILL be re-triggerable"
+
+
+# ============================================ watchdog verdict mapping
+def test_watchdog_status():
+    import os, sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from kcore.app import watchdog_status
+    assert watchdog_status("morning", "done", "done:2 signals")[0]
+    assert watchdog_status("morning", "skipped", "skipped:weekend")[0]
+    assert watchdog_status("evening", "skipped", "skipped:holiday")[0]
+    assert watchdog_status("morning", "running", None)[0]
+    ok, v = watchdog_status("morning", "skipped", "skipped:too-early (09:40 bar)")
+    assert not ok and "STUCK" in v, "unresolved too-early skip = missing signal"
+    ok, v = watchdog_status("morning", None, None)
+    assert not ok and "MISSING" in v
+    ok, v = watchdog_status("evening", "failed", "RuntimeError: boom")
+    assert not ok and "FAILED" in v

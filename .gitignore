@@ -17,3 +17,6 @@ __pycache__/
 engine/output/*.parquet
 *.log
 engine/data
+
+# PENDING PAT workflow scope: unignore + push when the token is re-issued (P4-03)
+.github/workflows/backup-triggers.yml

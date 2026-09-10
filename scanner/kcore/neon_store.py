@@ -191,9 +191,13 @@ def claim_job(conn: psycopg.Connection, job: str, dkey: str, *,
               max_attempts: int = 3, stale_min: int = 15) -> str:
     """Atomically claim (job, dkey). Returns one of:
        'claimed'          — this caller owns the run (state -> running, attempts+1)
-       'skip-done'        — already finished successfully (or skipped) today
+       'skip-done'        — already finished successfully today (terminal)
        'skip-running'     — a live run is in progress (fresh heartbeat)
        'skip-max-attempts'— failed too many times today; needs human eyes
+       P4-01: state='skipped' is RE-CLAIMABLE (the 09:44 wake ping skips
+       'too-early' and must not block the real 09:46 run; the evening retry
+       ladder re-triggers after 'not-posted-yet' skips). finish_job resets
+       attempts on skip, so benign skips never consume the failure budget.
     Concurrency-safe: the INSERT .. ON CONFLICT DO NOTHING and the conditional
     UPDATE .. RETURNING are the only two arbiters; losers observe the winner's
     post-state and skip. (Verified live: concurrent claims yield exactly one winner.)
@@ -215,7 +219,7 @@ def claim_job(conn: psycopg.Connection, job: str, dkey: str, *,
         return "skip-running"                    # vanished mid-race; safest answer
     state, attempts, _hb = cur
 
-    if state in ("done", "skipped"):
+    if state == "done":
         return "skip-done"
     if state == "running":
         fresh = conn.execute(
@@ -234,7 +238,7 @@ def claim_job(conn: psycopg.Connection, job: str, dkey: str, *,
         "UPDATE jobs_log SET state = 'running', attempts = attempts + 1, "
         "started_at = now(), heartbeat = now() "
         "WHERE job = %s AND dkey = %s AND ("
-        "      state IN ('pending', 'failed') "
+        "      state IN ('pending', 'failed', 'skipped') "
         "   OR (state = 'running' AND heartbeat < now() - (%s || ' minutes')::interval)"
         ") RETURNING job",
         (job, dkey, str(stale_min)),
@@ -256,6 +260,16 @@ def finish_job(conn: psycopg.Connection, job: str, dkey: str,
                state: str, detail: str | None = None) -> None:
     if state not in ("done", "failed", "skipped"):
         raise ValueError(f"invalid terminal state: {state}")
+    if state == "skipped":
+        # P4-01: a benign skip (too-early / not-posted-yet / weekend) must not
+        # consume the failure budget — reset attempts so re-triggers stay free.
+        conn.execute(
+            "UPDATE jobs_log SET state = 'skipped', detail = %s, attempts = 0, "
+            "finished_at = now(), heartbeat = now() "
+            "WHERE job = %s AND dkey = %s",
+            ((detail or "")[:1000], job, dkey),
+        )
+        return
     conn.execute(
         "UPDATE jobs_log SET state = %s, detail = %s, finished_at = now(), "
         "heartbeat = now() WHERE job = %s AND dkey = %s",

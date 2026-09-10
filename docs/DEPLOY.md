@@ -46,7 +46,15 @@ set each job's timezone to **Asia/Kolkata**):
 |---|---|---|---|---|
 | 1 | morning-wake | Mon–Fri 09:44 | `https://YOUR-URL/trigger/morning` | POST |
 | 2 | morning-run | Mon–Fri 09:46 | `https://YOUR-URL/trigger/morning` | POST |
-| 3 | evening | Mon–Fri 20:02 | `https://YOUR-URL/trigger/evening` | POST |
+| 3 | morning-watchdog | Mon–Fri 09:52 | `https://YOUR-URL/watchdog/morning` | POST |
+| 4 | evening | Mon–Fri 20:02 | `https://YOUR-URL/trigger/evening` | POST |
+| 5 | evening-retry | Mon–Fri 20:32 | `https://YOUR-URL/trigger/evening` | POST |
+| 6 | evening-watchdog | Mon–Fri 20:40 | `https://YOUR-URL/watchdog/evening` | POST |
+
+Why 6: 09:44 wakes the machine, 09:46 runs the signal, **09:52 CHECKS the
+signal actually went out** (Telegram alarm if not). Evening: 20:02 run,
+20:32 retry (if bhavcopy was late), 20:40 check + alarm if the watchlist
+never arrived.
 
 For **every** job:
 - Advanced → **Request headers**: add `X-Trigger-Secret` = the SAME secret you
@@ -69,6 +77,22 @@ before 09:45:40 anyway).
    → interval **5 minutes** → save.
 2. This keeps the Render service from sleeping (free tier allows 744 running
    hours/month; the plan cap is 750 — it fits).
+
+## Step 3b — Second alarm clock: GitHub Actions (backup timers)
+
+cron-job.org is the primary timer. GitHub Actions is a SECOND, independent
+timer (different company, different computers) firing the same triggers as a
+backup, plus watchdog checks. If the primary ever fails, this one still fires.
+
+1. Open the repo on GitHub → **Settings → Secrets and variables → Actions →
+   New repository secret** (green button). Add these two:
+   - Name: `SERVICE_URL` → Value: `https://kavach-scanner.onrender.com`
+   - Name: `TRIGGER_SECRET` → Value: the same secret you invented on Render
+2. Done — the workflow (`.github/workflows/backup-triggers.yml`) is already in
+   the repo and runs automatically at the same IST times. You can also run it
+   manually anytime: repo → **Actions** tab → "backup-triggers" → "Run workflow".
+3. The Actions tab shows a green ✓ for every scheduled run — a visible record
+   that the timers fired.
 
 ---
 

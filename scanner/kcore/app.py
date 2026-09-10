@@ -15,7 +15,7 @@ import threading
 
 from flask import Flask, jsonify, request
 
-from . import config, jobs, neon_store
+from . import config, jobs, neon_store, telegram
 from .clock import today_key
 
 JOB_NAMES = ("selftest", "evening", "morning", "watchdog", "universe-refresh")
@@ -41,6 +41,25 @@ def _morning(ctx):
 
 
 JOBS = {"selftest": _selftest, "evening": _evening, "morning": _morning}
+
+
+def watchdog_status(kind, state, detail):
+    """Map a jobs_log row to (ok, verdict). Pure function (unit-tested).
+    A 'too-early'/'not-posted-yet' skip that was never followed up by the real
+    run is exactly what the watchdog must catch."""
+    if state == "done":
+        return True, f"ok: {kind} done ({detail})"
+    if state == "failed":
+        return False, f"FAILED: {kind} ({detail})"
+    if state == "running":
+        return True, f"ok: {kind} still running"
+    if state is None:
+        return False, f"MISSING: no {kind} job ran today at all"
+    d = (detail or "")
+    if "weekend" in d or "holiday" in d:
+        return True, f"ok: {kind} skipped ({d})"
+    return False, (f"STUCK-SKIPPED: {kind} last state '{d}' — the real run "
+                   f"never happened")
 
 
 def create_app(cfg=None, store=neon_store):
@@ -84,6 +103,31 @@ def create_app(cfg=None, store=neon_store):
             daemon=True,
         ).start()
         return jsonify(status="accepted", job=job, dkey=today_key()), 202
+
+    @app.post("/watchdog/<kind>")
+    def watchdog(kind):
+        """Called AFTER the expected window (09:52 / 20:20 IST) by cron-job.org
+        and/or GitHub Actions. Verifies the job actually produced a signal
+        today and screams on Telegram if not."""
+        if request.headers.get("X-Trigger-Secret") != cfg["TRIGGER_SECRET"]:
+            return jsonify(error="forbidden"), 403
+        if kind not in ("morning", "evening"):
+            return jsonify(error=f"unknown watchdog: {kind}"), 404
+        conn = store.connect(cfg["NEON_DATABASE_URL"])
+        try:
+            row = neon_store.job_state(conn, kind, today_key())
+            state, detail = (row[0], row[2]) if row else (None, None)
+        finally:
+            conn.close()
+        ok, verdict = watchdog_status(kind, state, detail)
+        if not ok:
+            telegram.alert(
+                f"WATCHDOG [{kind.upper()}] {verdict} — check the system now; "
+                f"today's {'signal' if kind == 'morning' else 'watchlist'} "
+                f"may be missing.", cfg["TELEGRAM_BOT_TOKEN"],
+                cfg["TELEGRAM_CHAT_ID"], severity="ERROR")
+        return jsonify(ok=ok, kind=kind, state=state, verdict=verdict), \
+            (200 if ok else 503)
 
     return app
 

@@ -88,7 +88,7 @@ NEON_DATABASE_URL="<your-neon-url>" python3 -m pytest tests/ -q
 | P1 | Shared core & state layer (Neon, Telegram, clients, job runner) | ✅ 43/43 gate |
 | P2 | Evening pipeline (harvest → features → score → watchlist message) + universe maintenance (daily F&O diff) | ✅ 56/56 gate |
 | P3 | Morning engine (9:45 signal with entries + stops) | ⬜ |
-| P4 | Deployment (Render Docker, pingers, watchdogs) | ⬜ |
+| P4 | Deployment (Render Docker, pingers, watchdogs) | 🟡 live — guarantee system deployed; backup timer pending PAT `workflow` scope |
 | P5 | Paper-trading shakedown (live, zero capital) | ⬜ |
 
 Protocol per phase: discuss → research → error-hunt → build → verification gate → sign-off.

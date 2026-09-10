@@ -114,6 +114,31 @@ All preview items resolved plus the following observed/designed failure modes:
 
 ## Phase P3 — morning engine (placeholder)
 
-## Phase P4 — deployment & hardening (placeholder)
+## Phase P4 — deployment & hardening (LIVE — kavach-scanner.onrender.com)
+- **P4-01 skipped-is-terminal (CRITICAL, found pre-live)**: the job runner
+  treated state='skipped' as final for the day. The 09:44 wake ping's
+  'skipped:too-early' would have PERMANENTLY blocked the real 09:46 morning
+  run — silently, no signal, no alert. Same for the evening retry ladder after
+  'not-posted-yet'. Fix: 'skipped' is re-claimable; finish_job resets attempts
+  on skip (only real failures consume the max_attempts budget). Live-verified
+  on Neon: skip(09:44) -> claimed(09:46) -> skip-done(third).
+- **P4-02 watchdogs**: POST /watchdog/{morning,evening} after the windows
+  (09:52 / 20:40 IST). Verdicts: done/weekend/holiday = ok; running = ok;
+  MISSING / FAILED / STUCK-SKIPPED = Telegram ERROR. Absence of a signal is
+  itself an alarmed event.
+- **P4-03 independent second clock**: GitHub Actions backup-triggers.yml
+  (09:44/09:48 trigger, 09:54 watchdog, 20:03 trigger, 20:22 watchdog IST).
+  GHA cron is jittery by design -> the workflow maps its own start time to an
+  action window, so lateness is safe; idempotent re-triggers absorb doubles.
+  NOTE: pushing the .yml requires the PAT to have `workflow` scope (classic
+  tokens refuse workflow-file creation without it — hit during first push).
+- **P4-04 keep-alive**: UptimeRobot pings /health every 5 min (static route,
+  never touches Neon — no egress burn). Render cold start (~45-60s) is
+  absorbed by the 09:44 wake + 09:46 run pair; if 09:44 lands post-09:45:40
+  anyway, the run is still valid (idempotent, in-window).
+- **P4-05 in-chat schedulers are unreliable**: long sleeps in the sandbox
+  drift when the box idles (evening watcher woke ~2 min late; morning watcher
+  never got to fire). Production timers MUST live in the cloud; in-chat runs
+  are manual/interactive only.
 
 ## Phase P5 — paper-trading shakedown (placeholder)
