@@ -143,3 +143,98 @@ class TestJobGates:
         sent2, _ = [], []
         res2 = run_morning(_ctx(sent2, []), fetch_fn=lambda k: bars)
         assert res2 == res and sent2[0] == sent[0]
+        conn = neon_store.connect()                      # P2-09: tests clean up
+        conn.execute("DELETE FROM signals WHERE dkey='2026-09-10'")
+        conn.close()
+
+
+# ------------------------------------------------------- token + staleness
+def test_stale_data_rejected():
+    """Previous-session cache must raise, never feed the math (P3-05)."""
+    from morning import StaleDataError, _parse_intraday
+    yesterday = (dt.date(2026, 9, 10)).isoformat()
+    payload = {"data": {"candles": [
+        [f"{yesterday}T09:15:00+05:30", 10, 11, 9.5, 10.5, 100],
+        [f"{yesterday}T09:40:00+05:30", 13, 15, 13, 14.5, 100]]}}
+    with pytest.raises(StaleDataError):
+        _parse_intraday(payload, "2026-09-11")
+
+
+def test_parse_today_ok_and_zero_volume_dropped():
+    from morning import _parse_intraday
+    today = "2026-09-11"
+    payload = {"data": {"candles": [
+        [f"{today}T09:15:00+05:30", 10, 11, 9.5, 10.5, 100],
+        [f"{today}T09:20:00+05:30", 0, 0, 0, 0, 0],
+        [f"{today}T09:40:00+05:30", 13, 15, 13, 14.5, 100]]}}
+    bars = _parse_intraday(payload, today)
+    assert bars == [(555, 10.0, 11.0, 9.5, 10.5, 100), (580, 13.0, 15.0, 13.0, 14.5, 100)]
+
+
+def test_auth_fallback_used_when_public_fails():
+    from morning import fetch_intraday_bars
+    calls = []
+
+    def fake_http(key, token=None):
+        calls.append(token)
+        if token is None:
+            raise RuntimeError("401 unauthorized")       # public fails
+        return [(555, 10, 11, 9.5, 10.5, 100)]           # auth works
+
+    import morning as M
+    orig = M._intraday_http
+    M._intraday_http = fake_http
+    try:
+        bars = fetch_intraday_bars("NSE_EQ|INE669E01016", token="TESTTOKEN")
+        assert bars and calls == [None, "TESTTOKEN"]     # tried public, then auth
+    finally:
+        M._intraday_http = orig
+
+
+@LIVE
+class TestDataFailureAbort:
+    def teardown_method(self):
+        clock._now = lambda: dt.datetime.now(clock.IST)
+
+    def test_total_failure_aborts_not_flat(self):
+        """ALL fetches down -> loud abort; 'stay flat' must never be sent."""
+        from morning import run_morning
+        conn = neon_store.connect()                      # order-independent
+        conn.execute("DELETE FROM signals WHERE dkey='2026-09-10'")
+        conn.close()
+        _freeze(2026, 9, 10, 9, 46)                     # watchlist 09-09 exists
+        sent, alerts = [], []
+
+        def dead_fetch(key):
+            raise RuntimeError("public (401) | auth (no token)")
+
+        with pytest.raises(RuntimeError, match="all morning fetches failed"):
+            run_morning(_ctx(sent, alerts), fetch_fn=dead_fetch)
+        assert alerts and not sent                      # alerted, NOTHING sent
+        conn = neon_store.connect()
+        n = conn.execute("SELECT count(*) FROM signals WHERE dkey='2026-09-10'").fetchone()[0]
+        conn.close()
+        assert n == 0
+
+    def test_partial_failure_proceeds_with_note(self):
+        """Some symbols down -> signal still sent, missing names listed."""
+        from morning import run_morning
+        _freeze(2026, 9, 10, 9, 46)
+        sent, alerts = [], []
+        bars = [_bar(555, 10, 11, 9.5, 10.5), _bar(560, 10.5, 11.2, 10, 11),
+                _bar(570, 11, 13, 11, 12.5), _bar(575, 12.5, 14, 12, 13),
+                _bar(580, 13, 15, 13, 14.5)]
+        calls = []
+
+        def flaky(key):
+            calls.append(key)
+            if len(calls) == 1:
+                return bars                             # first pick has data
+            raise RuntimeError("down")                  # the rest fail
+
+        res = run_morning(_ctx(sent, alerts), fetch_fn=flaky)
+        assert res.startswith("done:1")
+        assert "no-data:" in sent[0]
+        conn = neon_store.connect()
+        conn.execute("DELETE FROM signals WHERE dkey='2026-09-10'")
+        conn.close()

@@ -25,6 +25,8 @@ second-to-last and therefore exact. Fetch at >= 09:45:40 only.
 Job semantics mirror evening.py: return "skipped:..." for benign states,
 raise = failed + alert. Idempotent: re-trigger overwrites the day's rows.
 """
+import datetime as dt
+import os
 import sys
 import time
 from pathlib import Path
@@ -55,30 +57,46 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
 
 
 # ------------------------------------------------------------------ data
-def fetch_intraday_bars(instrument_key):
-    """PUBLIC v3 intraday 5-min bars -> [(mod, o, h, l, c, v)], zero-volume
-    bars dropped. Raises after FETCH_TRIES on hard failure (5xx/network);
-    a non-retryable 4xx raises immediately."""
-    import datetime as dt
-    url = f"{UPSTOX}/{instrument_key}/minutes/5"
+class StaleDataError(RuntimeError):
+    """Intraday response is not today's session (e.g. a previous-day cache).
+    Never compute OR15/c945 from stale bars — that would signal yesterday's
+    market as if it were today (P3-05, silent-killer)."""
+
+
+def _parse_intraday(json_resp, today_iso):
+    """-> [(mod, o, h, l, c, v)], zero-volume bars dropped. Raises
+    StaleDataError when the newest bar is not dated TODAY."""
+    out = []
+    for c in json_resp.get("data", {}).get("candles", []):
+        if len(c) < 6:
+            continue
+        try:
+            vol = int(c[5])
+            if vol <= 0:
+                continue                             # filler bar
+            t = dt.datetime.fromisoformat(c[0])
+            out.append((t.date().isoformat(), t.hour * 60 + t.minute,
+                        float(c[1]), float(c[2]), float(c[3]), float(c[4]), vol))
+        except (ValueError, TypeError):
+            continue
+    if out and max(b[0] for b in out) != today_iso:
+        raise StaleDataError(f"intraday bars dated {max(b[0] for b in out)}, "
+                             f"expected {today_iso} (stale/previous-session)")
+    return [b[1:] for b in out]
+
+
+def _intraday_http(instrument_key, token=None, today_iso=None):
+    """One HTTP GET (public, or Bearer-authenticated when token given)."""
+    headers = dict(UA)
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     for attempt in range(FETCH_TRIES):
         try:
-            r = requests.get(url, headers=UA, timeout=15)
+            r = requests.get(f"{UPSTOX}/{instrument_key}/minutes/5",
+                             headers=headers, timeout=15)
             if r.status_code == 200:
-                out = []
-                for c in r.json().get("data", {}).get("candles", []):
-                    if len(c) < 6:
-                        continue
-                    try:
-                        vol = int(c[5])
-                        if vol <= 0:
-                            continue                     # filler bar
-                        t = dt.datetime.fromisoformat(c[0])
-                        out.append((t.hour * 60 + t.minute, float(c[1]),
-                                    float(c[2]), float(c[3]), float(c[4]), vol))
-                    except (ValueError, TypeError):
-                        continue
-                return out
+                return _parse_intraday(r.json(),
+                                       today_iso or clock.today_key())
             if r.status_code in (500, 502, 503, 504):
                 time.sleep(FETCH_SLEEP * (attempt + 1))
                 continue
@@ -88,6 +106,38 @@ def fetch_intraday_bars(instrument_key):
                 raise RuntimeError(f"upstox unreachable: {e}") from e
             time.sleep(FETCH_SLEEP)
     raise RuntimeError("upstox failed after retries")
+
+
+def load_token():
+    """Analytics token from env var UPSTOX_ACCESS_TOKEN or ~/.upstox_token
+    (mode 600). Never hardcoded, never committed, never logged."""
+    tok = os.environ.get("UPSTOX_ACCESS_TOKEN", "").strip()
+    if tok:
+        return tok
+    try:
+        with open("/home/user/.upstox_token") as fh:
+            return fh.read().strip()
+    except OSError:
+        return ""
+
+
+def fetch_intraday_bars(instrument_key, token=None):
+    """PUBLIC call first (verified working after close 2026-09-10); if it
+    fails during live market (user reports it may not serve live data
+    without auth), fall back to the AUTHENTICATED call when a token is
+    configured. Both paths validate bars are from TODAY's session."""
+    last = None
+    try:
+        return _intraday_http(instrument_key)
+    except Exception as e:                               # noqa: BLE001
+        last = e
+        tok = token or load_token()
+        if not tok:
+            raise
+    try:
+        return _intraday_http(instrument_key, tok)
+    except Exception as e2:                              # noqa: BLE001
+        raise RuntimeError(f"public ({last}) | auth ({e2})") from e2
 
 
 # ------------------------------------------------------------------ bar math
@@ -214,6 +264,12 @@ def run_morning(ctx, fetch_fn=None):
             picks.append(dict(symbol=r.symbol, prob=r.prob, prior=r.prior,
                               prior20h=r.prior20h, prior20l=r.prior20l, **m))
         picks = pd.DataFrame(picks)
+
+        # total data failure must NEVER look like a genuine 'stay flat'
+        if not len(picks) and len(excluded) == len(wl):
+            ctx["alert"](f"morning data unavailable for ALL {len(wl)} watchlist "
+                         f"stocks — aborting. Data failure is NOT a flat signal (P3-06).")
+            raise RuntimeError("all morning fetches failed — aborted, no signal sent")
 
         book = confirm_book(picks) if len(picks) else pd.DataFrame()
 
