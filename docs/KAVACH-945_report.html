@@ -226,7 +226,7 @@ Response row: [timestamp_iso, open, high, low, close, volume, ...]
 <tr><th>Store</th><th>Contents (as of 2026-09-10)</th></tr>
 <tr><td><code>data/cash.csv.gz</code></td><td>~101k stock-days, 271 symbols, 2024-10-01 → 2026-09-09 (480 EOD sessions)</td></tr>
 <tr><td><code>data/fut.csv.gz</code> / <code>data/opt.csv.gz</code></td><td>near-month futures &amp; aggregated options per stock-day, same window (renames stitched: 89/48/263/278 rows)</td></tr>
-<tr><td><code>data/panel.csv.gz</code></td><td>89,143 rows (2025-01-01 → 2026-09-09; Oct–Dec 2024 warmup pruned after features were formed), 271 symbols, 57 features + labels</td></tr>
+<tr><td><code>data/panel.csv.gz</code></td><td>89,143 rows (2025-01-01 → 2026-09-09; Oct–Dec 2024 warmup pruned after features were formed), 271 symbols, 56 features + labels</td></tr>
 <tr><td><code>data/candles/</code></td><td>268 symbol files, <b>2026-01-01 → present</b> (2025 bars pruned for space; re-fetch any time: <code>python3 candles.py window 2025-01-01 2025-12-31</code> ≈ 35 min, ~3,200 requests, zero failures expected)</td></tr>
 <tr><td><code>data/morning.csv.gz</code></td><td>105,295 stock-days of intraday morning metrics, 268 symbols, 2025-01-01 → 2026-09-09 — the preserved record of ALL 2025 intraday results</td></tr>
 <tr><td><code>data/oos predictions</code></td><td><code>output/oos_predictions.csv.gz</code> (18-month walk-forward) + <code>oos_predictions_2026only.csv.gz</code> (backup of the original 2026-only run)</td></tr>
@@ -269,7 +269,7 @@ base rate    ≈ 0.202  (20.2% of stock-days are "movers" — by construction ~t
 <h3>4.3 Ranking, model, and walk-forward protocol</h3>
 <pre>
 <span class="c"># 1. Cross-sectional rank: every feature → its percentile within the DAY</span>
-rank_features(p):  r[f] = p.groupby("date")[f].rank(pct=True)     <span class="c"># for all 57 features</span>
+rank_features(p):  r[f] = p.groupby("date")[f].rank(pct=True)     <span class="c"># for all 56 features</span>
 
 <span class="c"># 2. Model (exact hyperparameters):</span>
 HistGradientBoostingClassifier(max_iter=250, learning_rate=0.06, max_depth=4,
@@ -586,7 +586,7 @@ At 9:45, among the evening Top-10 picks:
 <tr><td>config.py</td><td>Paths, URL templates (§3), UA header, dates: HARVEST_FROM=2024-10-01, TRAIN_FROM=2025-01-01; TOP_N=10, QUINTILE=0.80, SEED=42</td></tr>
 <tr><td>harvest.py</td><td>Daily NSE downloads (cash/FO/participant bhavcopy, VIX) → /tmp, parse → append compact aggregates to data/{cash,fut,opt,part,mkt}.csv.gz + data/vix.csv</td></tr>
 <tr><td>backfill.py</td><td>Historic harvest over a date range (used for the Oct-2024 extension)</td></tr>
-<tr><td>features.py</td><td>cash+fut+opt+part+mkt+vix → panel.csv.gz: 57 features (§4.2), labels (§4.1). Groupby-rolling with shift discipline; ratios use prior-window means</td></tr>
+<tr><td>features.py</td><td>cash+fut+opt+part+mkt+vix → panel.csv.gz: 56 features (§4.2), labels (§4.1). Groupby-rolling with shift discipline; ratios use prior-window means</td></tr>
 <tr><td>validate.py</td><td>FEATURES list; rank_features (per-day percentile ranks); IC scan vs tr_expand &amp; y_move (→ output/ic_table.csv); walk-forward monthly-retrain loop (§4.3) → output/oos_predictions.csv.gz + metrics.csv</td></tr>
 <tr><td>direction.py</td><td>build_direction(): prior20H/L, basis_z (§5.2), trap features; APRIORI v1 score (kept for the record, REJECTED); evaluate() harness</td></tr>
 <tr><td>candles.py</td><td>5-min candle store via Upstox v3 (§3.2): governor (5/s, 280/min, 1800/30min, 6 workers, 429→700s pause), paise ints, filler-bar drop, resume-safe writes; modes: backfill / daily / window FROM TO / status</td></tr>
@@ -605,7 +605,7 @@ At 9:45, among the evening Top-10 picks:
 python3 backfill.py                 <span class="c"># EOD stores from 2024-10-01 → present (~480 sessions)</span>
 python3 candles.py backfill         <span class="c"># 5-min candles, current year (workspace-safe)</span>
 python3 candles.py window 2025-01-01 2025-12-31   <span class="c"># + 2025 candles for SL studies (99MB! prune after)</span>
-python3 features.py                 <span class="c"># panel.csv.gz (57 features + labels)</span>
+python3 features.py                 <span class="c"># panel.csv.gz (56 features + labels)</span>
 python3 validate.py                 <span class="c"># walk-forward → oos_predictions.csv.gz</span>
 python3 morning.py                  <span class="c"># morning.csv.gz + joined table (needs direction.py)</span>
 python3 backtest_full.py            <span class="c"># Stage-4 tables</span>

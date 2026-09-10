@@ -67,7 +67,10 @@ python3 scripts/verify_engine.py
 ```bash
 cd scanner
 NEON_DATABASE_URL="<your-neon-url>" python3 -m pytest tests/ -q
-# 43 passed — includes live-Neon tests (skipped automatically if the URL is not set)
+# 56 passed (43 P1 + 13 P2) — includes live-Neon tests (skipped automatically if the URL is not set)
+# P2 suite: parity vs frozen fixture (probs ≤1e-6, top-10 identical), gate/retry
+# semantics, fault injection (missing FO, VIX dead, off-schedule, duplicate
+# trigger), universe scenarios (new/absent/deactivate/reactivate/promote)
 ```
 
 ## Documentation
@@ -83,7 +86,7 @@ NEON_DATABASE_URL="<your-neon-url>" python3 -m pytest tests/ -q
 |---|---|---|
 | P0 | Repo & foundation, verification gate | ✅ |
 | P1 | Shared core & state layer (Neon, Telegram, clients, job runner) | ✅ 43/43 gate |
-| P2 | Evening pipeline (harvest → features → score → watchlist message) + universe maintenance (daily F&O diff; monthly 1st refresh: isin_map, history backfill, report) | ⬜ |
+| P2 | Evening pipeline (harvest → features → score → watchlist message) + universe maintenance (daily F&O diff) | ✅ 56/56 gate |
 | P3 | Morning engine (9:45 signal with entries + stops) | ⬜ |
 | P4 | Deployment (Render Docker, pingers, watchdogs) | ⬜ |
 | P5 | Paper-trading shakedown (live, zero capital) | ⬜ |

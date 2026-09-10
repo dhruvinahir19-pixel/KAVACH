@@ -61,16 +61,27 @@ def run_job(name, fn, *, store, url=None, tg=None,
             traceback.print_exc()
         return delivered
 
+    def send(msg):
+        if tg:
+            return telegram.send(msg, tg["token"], tg["chat_id"])
+        return False
+
     ctx = {
         "job": name,
         "dkey": dkey,
+        "url": url,
         "connect": lambda: store.connect(url),   # fresh short-lived connections
         "alert": alert,
+        "send": send,
     }
     try:
-        fn(ctx)
-        store.finish_job(conn, name, dkey, "done")
-        status = "done"
+        res = fn(ctx)
+        if isinstance(res, str) and res.startswith("skipped"):
+            store.finish_job(conn, name, dkey, "skipped", res)
+            status = "skipped"
+        else:
+            store.finish_job(conn, name, dkey, "done", res if isinstance(res, str) else None)
+            status = "done"
     except Exception as e:
         detail = f"{type(e).__name__}: {e}"
         store.finish_job(conn, name, dkey, "failed", detail)

@@ -61,9 +61,56 @@ hygiene) + live-Neon (schema idempotency, kv, claims, concurrency, retries-to-ma
 reclaim, tx atomicity, full run_job lifecycle, app end-to-end incl. duplicate-trigger
 skip). Production schema now live in the Neon project (9 tables).
 
-## Phase P2 — evening pipeline (preview; finalized at pre-phase discussion)
-Universe drift (F-15/F-16), bhavcopy retry ladder, holiday table, symbol renames (ISIN
-stitch discipline), model version mismatch, feature parity vs workspace, egress discipline.
+## Phase P2 — evening pipeline (COMPLETE — 56/56 gate green)
+All preview items resolved plus the following observed/designed failure modes:
+
+- **P2-01 bhavcopy posting order** (measured 2026-09-10): cash posts before FO UDiFF
+  (cash 200 at 17:18, FO still 404). During the retry ladder "cash OK but FO missing"
+  is a `skipped:not-posted-yet`, NOT a failure. Only after the ladder ends (21:55)
+  does a missing bhavcopy fail loud (alert + no watchlist). First trigger 20:00,
+  retries 20:30/21:00/21:30/22:00 — measured margin to cash posting is ~3h.
+- **P2-02 VIX fail-loud (D2)**: no VIX row → alert + RuntimeError BEFORE any Neon
+  write (upsert ordering is sanity → VIX → upsert). Never carry-forward — a stale
+  VIX would silently poison vix features.
+- **P2-03 model freshness**: blob asserts `trained_through < scoring date`; a model
+  trained through T cannot score T (would be in-sample leakage).
+- **P2-04 NaN features are NOT failures**: HistGradientBoosting handles NaN natively
+  and the research panel contained NaN rows (young symbols) — adding an exclusion
+  here would diverge from backtest logic. Top picks with thin history get a note in
+  the message instead ("partial-window picks").
+- **P2-05 universe maintenance baseline**: must compare against RECENT activity
+  (sessions since last_seen in eod_daily), never the all-time known set — the daily
+  FO universe is ~210 symbols vs 268 cumulative; all-time comparison falsely
+  deactivates ~58 healthy symbols within 5 days. 5 missed sessions → deactivate;
+  return → re-activate; ≥21 sessions → scoreable (F-16).
+- **P2-06 parity contract**: scanner path (Neon → 480-session cache → features_core
+  → model) vs workspace path (stores → full history → model) must match to 1e-6 on
+  probs with IDENTICAL top-10 (frozen fixture `tests/fixtures/parity_20260909.json`,
+  207 candidates, max observed drift 5e-8). Candidate set = DB `active ∧ scoreable`
+  — the DB is authoritative (matches the research daily cross-section).
+- **P2-07 NSE revises bhavcopy files post-publication** (observed: TURNOVER_LACS
+  83740.9 → 83740.87 for 2026-09-09 between two fetches 24h apart). Raw inputs can
+  drift ~1e-7 relative after a revision; the fixture tolerance (1e-6) prices this
+  in. Parity compares probs, not raw cells, as the primary gate.
+- **P2-08 inherited dead features (documented, NOT fixed)**: after the (date,symbol)
+  sort in features_core's market layer, vix_chg1/vix_chg5/nifty_ret1 are ~0.0 for
+  all but one symbol per day. Dead in research training AND validation AND
+  production scoring — validated metrics already price this in. Fixing = retrain +
+  revalidation = explicit user decision for a later phase. vix LEVEL is correct.
+- **P2-09 test-data pollution vector**: a test that upserts real dates can overwrite
+  production rows (observed: mock vix 13.5 overwrote the real 11.92 for 09-09
+  during a broken test run). Full-path tests must relabel to a far-future date
+  (2099-01-05) and clean up; parity fixtures must pin the candidate set.
+- **P2-10 clock discipline**: triggers outside 20:00–22:00 IST (weekdays, non-holiday)
+  raise off-schedule; weekend/holiday/not-posted return skipped states recorded by
+  the job runner. Test seam: `clock._now`.
+- **P2-11 process-global EodCache**: boot-once-append-daily is correct in production
+  (Render restarts daily on wake), but tests MUST reset `kcore.eod_cache._cache_singleton`
+  between cases or a stale cache masks per-test state.
+- **P2-12 store hygiene**: rewriting stores from harvest frames mixes date formats
+  ("2026-09-09 00:00:00" vs "2026-09-09") — pandas leaves the column object-dtype
+  and merges silently degrade. Normalize with `pd.to_datetime(col, format='mixed')`
+  and rewrite with `date_format='%Y-%m-%d'`; part/mkt must stay date-sorted.
 
 ## Phase P3 — morning engine (placeholder)
 

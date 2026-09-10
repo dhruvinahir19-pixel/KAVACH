@@ -70,9 +70,11 @@ def test_trigger_unknown_job(client):
     assert r.status_code == 404
 
 
-def test_trigger_unimplemented_job(client):
-    r = client.post("/trigger/evening", headers={"X-Trigger-Secret": "dummy-TRIGGER_SECRET"})
-    assert r.status_code == 501
+def test_trigger_unknown_job(client):
+    # P1: "evening" was registered-but-unimplemented -> 501.
+    # P2: evening is implemented; unknown names never reach a handler -> 404.
+    r = client.post("/trigger/bogus_job", headers={"X-Trigger-Secret": "dummy-TRIGGER_SECRET"})
+    assert r.status_code == 404
 
 
 def test_selftest_end_to_end(client):

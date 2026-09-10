@@ -30,7 +30,12 @@ def _selftest(ctx):
     ctx["alert"](f"selftest OK — dkey={ctx['dkey']}", severity="INFO")
 
 
-JOBS = {"selftest": _selftest}   # P2/P3: register evening/morning/watchdog/...
+def _evening(ctx):
+    from evening import run_evening
+    return run_evening(ctx)
+
+
+JOBS = {"selftest": _selftest, "evening": _evening}   # P3: morning/watchdog/...
 
 
 def create_app(cfg=None, store=neon_store):

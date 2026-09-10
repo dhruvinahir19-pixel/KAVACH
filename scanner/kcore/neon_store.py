@@ -94,6 +94,31 @@ CREATE TABLE IF NOT EXISTS model_blob (
   sha256          TEXT,
   created_at      TIMESTAMPTZ DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS eod_daily (
+  date       DATE NOT NULL,
+  symbol     TEXT NOT NULL,
+  prev_close DOUBLE PRECISION, open DOUBLE PRECISION, high DOUBLE PRECISION,
+  low DOUBLE PRECISION, close DOUBLE PRECISION, volume DOUBLE PRECISION,
+  turnover_l DOUBLE PRECISION, trades DOUBLE PRECISION,
+  deliv_qty  DOUBLE PRECISION, deliv_per DOUBLE PRECISION,
+  nm_expiry  TEXT, nm_close DOUBLE PRECISION, nm_oi DOUBLE PRECISION,
+  fut_oi DOUBLE PRECISION, fut_oi_chg DOUBLE PRECISION, fut_vol DOUBLE PRECISION,
+  fut_val DOUBLE PRECISION, fut_txns DOUBLE PRECISION,
+  ce_oi DOUBLE PRECISION, pe_oi DOUBLE PRECISION, ce_oi_chg DOUBLE PRECISION,
+  pe_oi_chg DOUBLE PRECISION, ce_vol DOUBLE PRECISION, pe_vol DOUBLE PRECISION,
+  ce_val DOUBLE PRECISION, pe_val DOUBLE PRECISION, top3_conc DOUBLE PRECISION,
+  call_build DOUBLE PRECISION,
+  PRIMARY KEY (date, symbol)
+);
+CREATE TABLE IF NOT EXISTS eod_mkt (
+  date       DATE PRIMARY KEY,
+  nifty_close DOUBLE PRECISION, banknifty_close DOUBLE PRECISION,
+  nifty_pcr  DOUBLE PRECISION, next_expiry TEXT, vix DOUBLE PRECISION,
+  client_stf_net DOUBLE PRECISION, client_idf_net DOUBLE PRECISION,
+  fii_stf_net DOUBLE PRECISION, fii_idf_net DOUBLE PRECISION,
+  dii_stf_net DOUBLE PRECISION, dii_idf_net DOUBLE PRECISION,
+  pro_stf_net DOUBLE PRECISION, pro_idf_net DOUBLE PRECISION
+);
 CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs_log (state);
 CREATE INDEX IF NOT EXISTS idx_alert_dkey ON alert_log (dkey);
 """

@@ -16,3 +16,4 @@ __pycache__/
 # ---- guard: nothing bulky in output ----
 engine/output/*.parquet
 *.log
+engine/data

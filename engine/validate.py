@@ -15,41 +15,13 @@ import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import roc_auc_score
 from config import PANEL_F, OUTPUT, TRAIN_FROM, TOP_N, SEED
-
-FEATURES = [
-    # price action
-    "ret1","ret5","ret10","ret20","range_pct","log_atr14p","atr5_atr20","clv",
-    "gap_pct","expansion_today","nr7","inside_day","squeeze","prev_squeeze",
-    "dist20h","dist60h","dist252h","ma20_dist","ma20_slope","run_dir","dow",
-    # volume & delivery
-    "vol_ratio","vol_ratio5","turnov_ratio","trades_ratio","deliv_pct",
-    "deliv_ratio","deliv_spike","deliv_x_vol","deliv_up_day",
-    # futures
-    "fut_oi","foi_chg1","foi_chg5","fut_vol_ratio","doi_norm","basis_pct","poi_state",
-    # options
-    "pcr_oi","pcr_vol","pcr_chg1","pcr_chg5","opt_oi_chg5","opt_vol_ratio",
-    "top3_strike_conc","call_build",
-    # market
-    "vix","vix_chg1","vix_chg5","nifty_ret1","nifty_pcr","mkt_breadth","days_to_exp",
-    # participants
-    "fii_stf_net","fii_stf_net_chg5","fii_idf_net","client_stf_net",
-]
-
+from model_core import FEATURES, rank_features, train_model
 
 def load_panel():
     p = pd.read_csv(PANEL_F, parse_dates=["date"])
     p = p[p["date"] >= TRAIN_FROM].copy()          # 2026 research window only
     p = p.dropna(subset=["y_move", "next_tr_pct"])
     return p
-
-
-def rank_features(p):
-    """Percentile-rank each feature within the day's cross-section."""
-    r = p.copy()
-    for f in FEATURES:
-        if f in r.columns:
-            r[f] = r.groupby("date")[f].rank(pct=True)
-    return r
 
 
 def top10_hits(sub):
@@ -93,11 +65,7 @@ def main():
         te = r[r["month"] == m].copy()
         if len(tr) < 2000 or te["date"].nunique() < 5:
             continue
-        Xtr, ytr = tr[FEATURES], tr["y_move"]
-        model = HistGradientBoostingClassifier(
-            max_iter=250, learning_rate=0.06, max_depth=4,
-            min_samples_leaf=60, l2_regularization=1.0, random_state=SEED)
-        model.fit(Xtr, ytr)
+        model = train_model(tr)
         te["prob"] = model.predict_proba(te[FEATURES])[:, 1]
 
         # per-day metrics
