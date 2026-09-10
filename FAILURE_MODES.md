@@ -25,6 +25,8 @@ Legend: **P**=prevention (designed out) · **D**=detection (alerts/tests catch i
 | F-12 | Duplicate triggers (pinger + cron + manual) double-send a 9:45 signal | **P:** idempotency key (job, date) — second trigger no-ops. **D:** job log shows skip reason |
 | F-13 | NSE WAF/403 from datacenter IP | **P:** UA header discipline (proven from datacenters for months). **D:** fetch failure alerts; workspace fallback for rebuilds |
 | F-14 | Logic drift between research engine and live scanner (backtest≠signal) | **P:** ONE shared rules/features module used by both. **D:** parity test — workspace recompute vs server rows diff ≈ 0 |
+| F-15 | Universe drift: NSE adds/removes F&O stocks; stale universe scores dead symbols or misses new movers | **P:** daily evening diff of FO bhavcopy symbol set vs Neon universe table (catches true effective dates — removals often at series expiry, not the 1st); monthly refresh job on the 1st: EQUITY_L.csv → isin_map rebuild, history backfill for additions, reconciliation + Telegram report; aligned with monthly model retrain. **D:** diff logged every evening; monthly report message; a pick absent from today's bhavcopy fails loudly at fetch |
+| F-16 | Newly added F&O symbol scored with short history → rolling windows (prior20, basis_z 20d, v45 median) not formed → NaN/garbage features | **P:** eligibility rule — scoreable only after ~21 contiguous EOD sessions (windows formed); young symbols excluded-and-noted in nightly diagnostics. **D:** NaN-feature assertion before scoring; exclusion counter in evening job log |
 
 ## Phase P0 — repo & foundation
 
@@ -41,7 +43,9 @@ Legend: **P**=prevention (designed out) · **D**=detection (alerts/tests catch i
 Placeholder — filled during P1 error-hunt: Neon cold start ~1s, connection pooling, partial
 writes (transactions), kill-mid-job recovery, Telegram edge cases, mock-based unit tests.
 
-## Phase P2 — evening pipeline (placeholder)
+## Phase P2 — evening pipeline (preview; finalized at pre-phase discussion)
+Universe drift (F-15/F-16), bhavcopy retry ladder, holiday table, symbol renames (ISIN
+stitch discipline), model version mismatch, feature parity vs workspace, egress discipline.
 
 ## Phase P3 — morning engine (placeholder)
 

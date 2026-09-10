@@ -75,7 +75,7 @@ python3 scripts/verify_engine.py
 |---|---|---|
 | P0 | Repo & foundation, verification gate | ✅ |
 | P1 | Shared core & state layer (Neon, Telegram, clients, job runner) | ⬜ |
-| P2 | Evening pipeline (harvest → features → score → watchlist message) | ⬜ |
+| P2 | Evening pipeline (harvest → features → score → watchlist message) + universe maintenance (daily F&O diff; monthly 1st refresh: isin_map, history backfill, report) | ⬜ |
 | P3 | Morning engine (9:45 signal with entries + stops) | ⬜ |
 | P4 | Deployment (Render Docker, pingers, watchdogs) | ⬜ |
 | P5 | Paper-trading shakedown (live, zero capital) | ⬜ |
