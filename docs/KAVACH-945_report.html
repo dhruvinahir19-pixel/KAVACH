@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KAVACH-945 — Complete System Report &amp; Rebuild Document</title>
+<style>
+  :root{--ink:#0f172a;--body:#1e293b;--mut:#64748b;--line:#e2e8f0;--bg:#ffffff;--soft:#f8fafc;
+        --amber:#b45309;--gold:#f59e0b;--green:#15803d;--red:#b91c1c;--blue:#1d4ed8;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:Georgia,'Times New Roman',serif;color:var(--body);background:var(--bg);line-height:1.55;font-size:15.5px;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 28px 80px;}
+  header{background:var(--ink);color:#fff;padding:54px 28px 44px;text-align:center;}
+  header .kicker{font-family:Verdana,Arial,sans-serif;font-size:11px;letter-spacing:3.5px;color:var(--gold);text-transform:uppercase;margin-bottom:14px;}
+  header h1{font-size:52px;letter-spacing:1px;font-weight:700;}
+  header h1 .n945{color:var(--gold);}
+  header .sub{font-style:italic;color:#cbd5e1;margin-top:10px;font-size:17px;}
+  header .meta{font-family:'Courier New',monospace;font-size:12px;color:#94a3b8;margin-top:22px;}
+  .statgrid{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:30px;}
+  .stat{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 18px;min-width:150px;}
+  .stat .v{font-family:'Courier New',monospace;font-size:21px;color:var(--gold);font-weight:bold;}
+  .stat .l{font-family:Verdana,Arial,sans-serif;font-size:9.5px;letter-spacing:1.2px;color:#94a3b8;text-transform:uppercase;margin-top:4px;}
+  h2{font-family:Verdana,Arial,sans-serif;font-size:21px;color:var(--ink);border-bottom:3px solid var(--ink);padding-bottom:8px;margin:54px 0 18px;letter-spacing:.3px;}
+  h2 .no{color:var(--gold);margin-right:10px;font-family:'Courier New',monospace;}
+  h3{font-family:Verdana,Arial,sans-serif;font-size:15.5px;color:var(--ink);margin:30px 0 10px;}
+  h4{font-family:Verdana,Arial,sans-serif;font-size:13px;color:var(--body);margin:20px 0 8px;}
+  p{margin:10px 0;}
+  ul,ol{margin:10px 0 10px 26px;}
+  li{margin:5px 0;}
+  code{font-family:'Courier New',monospace;font-size:13px;background:var(--soft);border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--red);}
+  pre{font-family:'Courier New',monospace;font-size:12.5px;background:var(--ink);color:#e2e8f0;border-radius:8px;padding:16px 18px;overflow-x:auto;margin:14px 0;line-height:1.5;}
+  pre .c{color:#94a3b8;} pre .g{color:#4ade80;} pre .y{color:var(--gold);}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px;}
+  th{font-family:Verdana,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.6px;background:var(--ink);color:#fff;padding:8px 9px;text-align:left;font-weight:600;}
+  td{padding:7px 9px;border-bottom:1px solid var(--line);font-family:'Courier New',monospace;font-size:12.5px;vertical-align:top;}
+  tr:nth-child(even) td{background:var(--soft);}
+  td.ok{color:var(--green);font-weight:bold;} td.bad{color:var(--red);font-weight:bold;}
+  .tag{display:inline-block;font-family:Verdana,Arial,sans-serif;font-size:9.5px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;border-radius:3px;padding:2px 8px;margin-right:6px;vertical-align:middle;}
+  .t-done{background:#dcfce7;color:var(--green);} .t-rej{background:#fee2e2;color:var(--red);}
+  .t-obs{background:#fef3c7;color:var(--amber);} .t-core{background:#dbeafe;color:var(--blue);}
+  .box{border-left:4px solid var(--line);background:var(--soft);padding:13px 18px;border-radius:0 8px 8px 0;margin:16px 0;}
+  .box.finding{border-color:var(--green);} .box.warning{border-color:var(--gold);} .box.reject{border-color:var(--red);} .box.key{border-color:var(--blue);}
+  .box .bt{font-family:Verdana,Arial,sans-serif;font-size:10.5px;font-weight:bold;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px;}
+  .box.finding .bt{color:var(--green);} .box.warning .bt{color:var(--amber);} .box.reject .bt{color:var(--red);} .box.key .bt{color:var(--blue);}
+  .cols{display:flex;gap:22px;flex-wrap:wrap;} .cols>div{flex:1;min-width:300px;}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin:18px 0;}
+  .fstep{flex:1;min-width:150px;background:var(--soft);border:1.5px solid var(--line);border-radius:8px;padding:11px 12px;text-align:center;}
+  .fstep .fn{font-family:'Courier New',monospace;font-weight:bold;font-size:15px;color:var(--ink);}
+  .fstep .fd{font-family:Verdana,Arial,sans-serif;font-size:10.5px;color:var(--mut);margin-top:5px;line-height:1.4;}
+  .farrow{display:flex;align-items:center;color:var(--gold);font-size:20px;font-weight:bold;}
+  .filemap td:first-child{font-family:'Courier New',monospace;font-weight:bold;color:var(--blue);white-space:nowrap;}
+  .toc{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:22px 28px;margin:40px 0;}
+  .toc h3{margin-top:0;font-family:Verdana,Arial,sans-serif;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut);}
+  .toc ol{columns:2;column-gap:40px;margin-left:22px;}
+  .toc a{color:var(--body);text-decoration:none;} .toc a:hover{color:var(--blue);}
+  .small{font-size:12.5px;color:var(--mut);}
+  .divider{border:none;border-top:1px solid var(--line);margin:40px 0;}
+  .nameplate{background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:12px;padding:26px 30px;margin:34px 0;color:#e2e8f0;}
+  .nameplate h3{color:var(--gold);margin-top:0;}
+  .center{text-align:center;}
+  .regime-good{background:#dcfce7 !important;} .regime-bad{background:#fee2e2 !important;}
+  @media print{header{padding:30px;} .toc{display:none;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">NSE Equity Intraday &nbsp;·&nbsp; Complete System Report &nbsp;·&nbsp; Self-Contained Rebuild Document</div>
+  <h1>KAVACH<span class="n945">-945</span></h1>
+  <div class="sub">कवच — "the armor". An evening-selected, morning-confirmed intraday sniper protocol<br>for NSE stock equity, armored with a hard 1% disaster stop.</div>
+  <div class="meta">Version 2.1 &nbsp;|&nbsp; Research window: 2025-01-01 → 2026-09-09 (warmup from 2024-10-01) &nbsp;|&nbsp; OOS: 2025-04-01 → 2026-09-08 &nbsp;|&nbsp; Compiled 2026-09-10</div>
+  <div class="statgrid">
+    <div class="stat"><div class="v">986</div><div class="l">OOS trades · 18 months</div></div>
+    <div class="stat"><div class="v">+0.42%</div><div class="l">net avg / trade</div></div>
+    <div class="stat"><div class="v">−1.20%</div><div class="l">worst trade (armored)</div></div>
+    <div class="stat"><div class="v">−4.80%</div><div class="l">worst day (armored)</div></div>
+    <div class="stat"><div class="v">+417pp</div><div class="l">total net, 1× size</div></div>
+    <div class="stat"><div class="v">1/18</div><div class="l">losing months</div></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="toc">
+<h3>Contents</h3>
+<ol>
+  <li><a href="#s0">Purpose &amp; How to Use This Document</a></li>
+  <li><a href="#s1">System Identity, Philosophy &amp; Constraints</a></li>
+  <li><a href="#s2">Architecture — The Six-Layer Stack</a></li>
+  <li><a href="#s3">Data Layer (Complete Specification)</a></li>
+  <li><a href="#s4">Layer 1 — Selection Engine (MFE v2)</a></li>
+  <li><a href="#s5">Layer 2 — Direction Prior (Futures Basis)</a></li>
+  <li><a href="#s6">Layer 3 — The 9:45 Morning Reveal</a></li>
+  <li><a href="#s7">Layer 4 — Full 2025→2026 Backtest &amp; Regimes</a></li>
+  <li><a href="#s8">Layer 5 — The KAVACH Armor (Sniper Protocol v2)</a></li>
+  <li><a href="#s9">Layer 6 — Robustness Battery</a></li>
+  <li><a href="#s10">Verification &amp; Audit Ledger</a></li>
+  <li><a href="#s11">Complete Rebuild Guide</a></li>
+  <li><a href="#s12">Daily Execution Playbook</a></li>
+  <li><a href="#s13">The Final Gate — Forward Paper-Trading</a></li>
+  <li><a href="#a1">Appendix A — Full Monthly Tables</a></li>
+  <li><a href="#a2">Appendix B — Glossary</a></li>
+  <li><a href="#a3">Appendix C — Constants Card (single-page reference)</a></li>
+</ol>
+</div>
+
+<!-- ================================================================ 0 -->
+<h2 id="s0"><span class="no">§0</span>Purpose &amp; How to Use This Document</h2>
+<p>This document is the <b>single source of truth</b> for the KAVACH-945 system. It is written so that if every chat log, note, and workspace file were lost tomorrow, a competent developer (or you, with patience) could rebuild the <i>entire engine from scratch</i> — data ingestion, feature panel, model, walk-forward validation, direction prior, morning protocol, sniper rules, stop-loss simulator, backtester, and every audit — using only what is written here.</p>
+<p>The project began with a report describing a next-day mover engine; that report was reverse-engineered into a working system, then extended stage by stage through six stages of research, each stage's decision forced by evidence. This document supersedes everything that came before it.</p>
+<div class="box key"><div class="bt">Reading order for a rebuild</div>
+<p>§3 (data) → §4 (selection) → §11 (file map &amp; commands) in one pass; then §5–§9 for the trading rules; §10 tells you which bugs have already been made and fixed so you don't repeat them. §12 is the daily routine. Appendix C is the one-page constants card to keep next to the terminal.</p></div>
+<div class="box warning"><div class="bt">What this document is not</div>
+<p>It is not a promise of returns. Every number inside is a <b>backtest</b> on 18 out-of-sample months (Apr 2025 – Sep 2026) with modeled costs. The system has never traded live. The final gate (§13) is forward paper-trading, and it has not been passed yet. The Monte Carlo verifies the <i>arithmetic and geometry</i>; it cannot verify that the edge persists.</p></div>
+
+<!-- ================================================================ 1 -->
+<h2 id="s1"><span class="no">§1</span>System Identity, Philosophy &amp; Constraints</h2>
+
+<div class="nameplate">
+<h3>THE NAME</h3>
+<p><b>KAVACH-945</b> — <i>Kavach</i> (कवच) is Sanskrit for <b>armor</b>. The defining innovation of this system is not its winners — it is its refusal to die on its losers: a hard 1% disaster stop that bounds every trade at −1.2% and every trading day at approximately −4.8% of the book. <i>945</i> is the minute of the morning reveal — 9:45 IST — when the evening's preparation meets the market's first verdict and the trade is either confirmed or discarded.</p>
+<p style="margin-top:8px;"><span class="tag t-core">Core Identity</span> Evening intelligence · Morning confirmation · Armored execution. <b>Select tonight, confirm at 9:45, armor every trade, exit by 15:10.</b></p>
+</div>
+
+<h3>1.1 Standing constraints (non-negotiable design rules)</h3>
+<table>
+<tr><th>#</th><th>Constraint</th><th>Consequence in the system</th></tr>
+<tr><td>1</td><td>India / NSE only</td><td>All data sources, sessions, and timings are NSE; cash session 9:15–15:30 IST</td></tr>
+<tr><td>2</td><td>Trades <b>stock equity intraday</b> only</td><td>F&amp;O data is a <b>signal source, never a vehicle</b>; all positions are cash-market equity, closed same day</td></tr>
+<tr><td>3</td><td>No indicator-based approaches</td><td>No RSI/MACD/MA-crossover signals anywhere; features are statistical characterizations (returns, ranges, volume, OI, basis), and the only "trigger" is a structural price event (opening-range break)</td></tr>
+<tr><td>4</td><td>No paid tools; free data only</td><td>NSE public bhavcopy archives + Upstox v3 free historical API + Yahoo VIX. Zero rupees of data cost</td></tr>
+<tr><td>5</td><td>Workspace hard limit 128 MB</td><td>Raw downloads go to <code>/tmp</code> only; workspace stores compact csv.gz aggregates; 5-min candle store is pruned to the current year when the cap approaches (§3.6)</td></tr>
+<tr><td>6</td><td>Disaster days must not wipe months of profit</td><td>The entire Layer 5 (KAVACH armor) exists because of this rule; position sizing built on true stop-risk (§9.3)</td></tr>
+<tr><td>7</td><td>Trade quantity: 1–2 stocks/day, no long gaps between trade days</td><td>Filters only fire when a side shows &gt;3 confirmed candidates; no forced trades (§8)</td></tr>
+</table>
+
+<h3>1.2 The six-stage research journey (decision log)</h3>
+<table>
+<tr><th>Stage</th><th>Question</th><th>Outcome</th></tr>
+<tr><td><b>1 — Selection</b></td><td>Can EOD NSE data predict tomorrow's big movers?</td><td><span class="tag t-done">BUILT</span> Mover engine: 18-month OOS hit 52.7% vs 20.2% base, AUC 0.709 (§4)</td></tr>
+<tr><td><b>2 — Direction</b></td><td>Can we predict <i>which way</i> picks move?</td><td><span class="tag t-rej">REJECTED</span> trap scorecard (regime-fragile). <span class="tag t-done">VALIDATED</span> futures-basis discount prior (§5)</td></tr>
+<tr><td><b>3 — Morning protocol</b></td><td>When/whether to actually enter intraday?</td><td><span class="tag t-done">BUILT</span> 9:45 opening-range reveal: 69.9% win longs in 2026 window (§6)</td></tr>
+<tr><td><b>4 — Regime test</b></td><td>Is the short side broken, or was 2026 a flattery window?</td><td><span class="tag t-done">PROVEN</span> both sides profitable over 18 months; 2026 window was regime bias — shorts stay (§7)</td></tr>
+<tr><td><b>5 — KAVACH armor</b></td><td>1–2 best stocks/day + disaster SL, without losing trade quantity?</td><td><span class="tag t-done">BUILT</span> Sniper protocol v2: worst day −15.25% → −4.80%, edge preserved (§8)</td></tr>
+<tr><td><b>6 — Robustness</b></td><td>Latency, exit time, small-account compounding, MC verification</td><td><span class="tag t-done">PASSED</span> edge survives 5-min latency &amp; exit band; geometry verified; 11.4σ selection-control separation (§9)</td></tr>
+</table>
+
+<!-- ================================================================ 2 -->
+<h2 id="s2"><span class="no">§2</span>Architecture — The Six-Layer Stack</h2>
+<p>KAVACH-945 is a pipeline of six independent layers. Each layer was validated alone before the next was built on top of it. In production, layers 1–2 run after the evening close, layer 3 fires at 9:45 the next morning, and layers 4–6 are the execution discipline wrapped around the trade.</p>
+<div class="flow">
+  <div class="fstep"><div class="fn">1 · SELECT</div><div class="fd">Evening: gradient-boosted model scores every F&amp;O-universe stock for "tomorrow's top-quintile mover" probability → Top-10 watchlist</div></div>
+  <div class="farrow">→</div>
+  <div class="fstep"><div class="fn">2 · TILT</div><div class="fd">Evening: futures basis z-score per pick → directional prior (discount = bearish lean, premium = caution on longs)</div></div>
+  <div class="farrow">→</div>
+  <div class="fstep"><div class="fn">3 · REVEAL</div><div class="fd">9:45 next morning: price vs 9:15–9:30 opening range → LONG above OR high, SHORT below OR low, else no trade</div></div>
+</div>
+<div class="flow">
+  <div class="fstep"><div class="fn">4 · SNUFF</div><div class="fd">Same 9:45 moment: if a side has &gt;3 confirmed candidates, keep only the 2 calmest (20-day range) — correlation control</div></div>
+  <div class="farrow">→</div>
+  <div class="fstep"><div class="fn">5 · ARMOR</div><div class="fd">On fill: hard bracket stop 1.0% adverse from entry. Every trade. No discretion. Bounded loss = −1.2% incl. costs</div></div>
+  <div class="farrow">→</div>
+  <div class="fstep"><div class="fn">6 · EXIT</div><div class="fd">15:10 manual exit if not stopped (avoids broker auto square-off charges). Risk 1% of capital per trade</div></div>
+</div>
+<div class="box key"><div class="bt">The one-sentence system</div>
+<p style="font-size:16px;">Tonight the engine names ten suspects and leans directional via futures basis; at 9:45 tomorrow the opening range interrogates them and only 1–3 survivors get a ticket — each wearing a 1% armor vest — and everyone goes home by 15:10.</p></div>
+
+<h3>2.1 Signal flow vs data flow</h3>
+<ul>
+<li><b>Signal flow (per trading day T):</b> EOD data through close of T−1 → model scores for day T → Top-10 watchlist published evening of T−1 → 9:45 on day T: OR confirmation on live quote → entry → stop/exit.</li>
+<li><b>Data flow (batch):</b> daily harvest appends EOD stores → features.py rebuilds panel → validate.py walk-forward regenerates OOS predictions → morning.py rebuilds the joined morning table → protocol_v2.py produces the backtest book.</li>
+</ul>
+
+<!-- ================================================================ 3 -->
+<h2 id="s3"><span class="no">§3</span>Data Layer — Complete Specification</h2>
+<p>Everything in KAVACH-945 is built from <b>three free sources</b>. No API keys, no subscriptions.</p>
+
+<h3>3.1 Source 1 — NSE EOD bhavcopy archives (evening layer)</h3>
+<table>
+<tr><th>File</th><th>URL template</th><th>Used for</th></tr>
+<tr><td>Cash bhavcopy (full, with delivery)</td><td><code>https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_{DDMMYYYY}.csv</code></td><td>OHLC, volume, #trades, turnover, delivery qty/% per stock</td></tr>
+<tr><td>F&amp;O UDiFF bhavcopy</td><td><code>https://nsearchives.nseindia.com/content/fo/BhavCopy_NSE_FO_0_0_0_{YYYYMMDD}_F_0000.csv.zip</code></td><td>Every futures &amp; options contract: OI, volume, settle price → basis, PCR, OI builds</td></tr>
+<tr><td>Participant OI</td><td><code>https://nsearchives.nseindia.com/content/nsccl/fao_participant_oi_{DDMMYYYY}.csv</code></td><td>FII / client / pro futures positioning</td></tr>
+<tr><td>EQUITY_L.csv</td><td><code>https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv</code></td><td>Symbol→ISIN map (current listed symbols only)</td></tr>
+</table>
+<ul>
+<li>Send a browser <b>User-Agent</b> header; NSE archives reject bare requests.</li>
+<li>Weekends/holidays return 404/200-empty — the harvest loop must skip them gracefully.</li>
+<li>Verified available back through at least Oct 2024 for all three daily files.</li>
+<li><b>Close-price convention:</b> bhavcopy close is the <i>closing auction</i> price; Upstox 5-min last close is the <i>last continuous trade</i>. Median gap ≈ 0.114%. Both are "correct"; never mix conventions within one computation.</li>
+</ul>
+
+<h3>3.2 Source 2 — Upstox v3 historical API (intraday layer)</h3>
+<pre>
+GET https://api.upstox.com/v3/historical-candle/NSE_EQ%7C{ISIN}/minutes/5/{to}/{from}
+     — {to} and {from} are YYYY-MM-DD; note the REVERSED order (to before from)
+     — NO authentication required (verified empirically, Sep 2026)
+     — interval 1–15 min → MAX ONE MONTH per request (longer ranges: HTTP 400)
+     — history depth: from Jan 2022
+     — serves PRE-rename history under the CURRENT ISIN (verified for
+       ETERNAL, GMRAIRPORT, TMPV, LTM) → no candle-level stitching ever needed
+Rate limits ("Other Standard APIs"): 50/sec, 500/min, 2000 per 30 min.
+Safe governor used: 5/sec, 280/min, 1800 per 30 min, 6 parallel workers;
+on HTTP 429 → global 700 s pause (outlasts the block window).
+Response row: [timestamp_iso, open, high, low, close, volume, ...]
+</pre>
+<ul>
+<li><b>Storage format per symbol</b> <code>data/candles/{SYMBOL}.csv.gz</code>: columns <code>epoch_min, open_paise, high_paise, low_paise, close_paise, volume</code> — prices as integer paise, timestamps as epoch minutes (UTC). One file ≈ 130 KB/year gzipped.</li>
+<li><b>Zero-volume filler bars are dropped</b> (Upstox pads no-trade sessions with OHLC=prev-close, volume 0).</li>
+<li><b>Merge discipline:</b> when extending a symbol's file (forward or backward), always <code>concat → drop_duplicates(epoch_min) → sort_values(epoch_min)</code>. Never slice/cut — an earlier version's "cut at window start" logic silently destroyed newer rows.</li>
+<li>IST minute-of-day from epoch: <code>mod = (epoch_min % 1440 + 330) % 1440</code>; IST day number: <code>day = (epoch_min + 330) // 1440</code>.</li>
+</ul>
+
+<h3>3.3 Source 3 — Yahoo Finance (market context)</h3>
+<p><code>https://query1.finance.yahoo.com/v8/finance/chart/%5EINDIAVIX</code> → daily India VIX close (stored <code>data/vix.csv</code>). Nifty close and market PCR come from the F&amp;O bhavcopy aggregation (<code>data/mkt.csv.gz</code>).</p>
+
+<h3>3.4 Universe &amp; corporate actions</h3>
+<ul>
+<li><b>Universe:</b> the NSE F&amp;O single-stock universe (stocks with a futures chain in the FO bhavcopy) — practically ~270 symbols; the label and features are cross-sectional within this universe.</li>
+<li><b>Corporate renames/tickers:</b> the ONLY valid continuity test is <b>ISIN continuity</b> (same security, new symbol). Gap- or price-proximity matching produces false positives (e.g., F&amp;O membership swaps like CANFINHOME→TATATECH look like "renames" but are different securities). Four renames were ISIN-verified and stitched in the EOD stores: <code>ZOMATO→ETERNAL</code>, <code>GMRINFRA→GMRAIRPORT</code>, <code>TATAMOTORS→TMPV</code>, <code>LTIM→LTM</code>. Three dead symbols have no successor and were excluded: GUJGASLTD, IDFC, PEL (delisted 2025-07-31; marginally reduces 2025 morning coverage).</li>
+<li><b>isin_map.csv.gz</b>: 268/271 symbols mapped (built from EQUITY_L.csv).</li>
+</ul>
+
+<h3>3.5 Current data inventory &amp; audits</h3>
+<table>
+<tr><th>Store</th><th>Contents (as of 2026-09-10)</th></tr>
+<tr><td><code>data/cash.csv.gz</code></td><td>~101k stock-days, 271 symbols, 2024-10-01 → 2026-09-09 (480 EOD sessions)</td></tr>
+<tr><td><code>data/fut.csv.gz</code> / <code>data/opt.csv.gz</code></td><td>near-month futures &amp; aggregated options per stock-day, same window (renames stitched: 89/48/263/278 rows)</td></tr>
+<tr><td><code>data/panel.csv.gz</code></td><td>89,143 rows (2025-01-01 → 2026-09-09; Oct–Dec 2024 warmup pruned after features were formed), 271 symbols, 57 features + labels</td></tr>
+<tr><td><code>data/candles/</code></td><td>268 symbol files, <b>2026-01-01 → present</b> (2025 bars pruned for space; re-fetch any time: <code>python3 candles.py window 2025-01-01 2025-12-31</code> ≈ 35 min, ~3,200 requests, zero failures expected)</td></tr>
+<tr><td><code>data/morning.csv.gz</code></td><td>105,295 stock-days of intraday morning metrics, 268 symbols, 2025-01-01 → 2026-09-09 — the preserved record of ALL 2025 intraday results</td></tr>
+<tr><td><code>data/oos predictions</code></td><td><code>output/oos_predictions.csv.gz</code> (18-month walk-forward) + <code>oos_predictions_2026only.csv.gz</code> (backup of the original 2026-only run)</td></tr>
+</table>
+<p><b>Data-quality audits performed (audit_candles.py):</b> Upstox 5-min vs NSE bhavcopy on matched sessions — open/high/low <b>100% match</b>; volume <b>97.6% match</b>; close median gap <b>0.114%</b> (expected: closing auction vs last trade, see §3.1). Coverage: 171 sessions/stock in the 2026 window at audit time.</p>
+
+<h3>3.6 Space budget (128 MB hard cap)</h3>
+<ul>
+<li>Raw NSE downloads → <code>/tmp/mfe_raw</code> only; never written to workspace. Only compact aggregates are persisted.</li>
+<li>Full 2025+2026 5-min candle store = ~99 MB → alone nearly breaks the cap. Policy: keep the current year in the workspace; keep historical years in <code>/tmp</code> during a study, then prune. All derived results live in <code>morning.csv.gz</code> (~1–3 MB) which IS persisted.</li>
+<li>Current workspace: 76 MB total (37 MB candles 2026-only + 28 MB panel + ~10 MB EOD stores/outputs).</li>
+</ul>
+
+
+<!-- ================================================================ 4 -->
+<h2 id="s4"><span class="no">§4</span>Layer 1 — Selection Engine ("MFE v2", the mover model)</h2>
+<p><b>Goal:</b> every evening, rank the F&amp;O universe by the probability that each stock will be a <i>top-quintile mover tomorrow</i>, and publish the Top-10 as tomorrow's watchlist. This layer says nothing about direction — only "will move".</p>
+
+<h3>4.1 Label (what "mover" means)</h3>
+<pre>
+next_tr_pct  = 100 * (max(next_high, close) − min(next_low, close)) / close     <span class="c"># tomorrow's true range as % of today's close</span>
+y_move       = 1 if next_tr_pct &gt;= 80th percentile of that DAY's cross-section   <span class="c"># QUINTILE = 0.80</span>
+base rate    ≈ 0.202  (20.2% of stock-days are "movers" — by construction ~top 20%)
+</pre>
+<p>The label is <b>cross-sectional per day</b> (top quintile of that day's universe), so the model learns "unusual mover for tomorrow's tape", not an absolute % threshold that would break across regimes.</p>
+
+<h3>4.2 Features — 57 columns, all strictly ≤ close of day T</h3>
+<p>Discipline: every feature at row (t, stock) uses ONLY data up to the close of t. Ratios vs "20-day average" use the mean of the PRIOR 20 sessions (today excluded) so a surge is not diluted by itself. Labels use t+1 data only.</p>
+<table>
+<tr><th>Group</th><th>Features (exact names)</th></tr>
+<tr><td><b>Price action</b></td><td>ret1, ret5, ret10, ret20, range_pct, log_atr14p, atr5_atr20, clv, gap_pct, expansion_today, nr7, inside_day, squeeze, prev_squeeze, dist20h, dist60h, dist252h, ma20_dist, ma20_slope, run_dir, dow</td></tr>
+<tr><td><b>Volume &amp; delivery</b></td><td>vol_ratio, vol_ratio5, turnov_ratio, trades_ratio, deliv_pct, deliv_ratio, deliv_spike, deliv_x_vol, deliv_up_day</td></tr>
+<tr><td><b>Futures</b></td><td>fut_oi, foi_chg1, foi_chg5, fut_vol_ratio, doi_norm, basis_pct, poi_state</td></tr>
+<tr><td><b>Options</b></td><td>pcr_oi, pcr_vol, pcr_chg1, pcr_chg5, opt_oi_chg5, opt_vol_ratio, top3_strike_conc, call_build</td></tr>
+<tr><td><b>Market</b></td><td>vix, vix_chg1, vix_chg5, nifty_ret1, nifty_pcr, mkt_breadth, days_to_exp</td></tr>
+<tr><td><b>Participants</b></td><td>fii_stf_net, fii_stf_net_chg5, fii_idf_net, client_stf_net</td></tr>
+</table>
+<p class="small">Key constructions: <code>atr14</code> from true range (h−l, |h−pc|, |l−pc| max) with min_periods 10; <code>vol_ratio</code> = volume ÷ prior-20d mean; <code>basis_pct</code> = near-month futures vs cash; options aggregated to per-stock OI/volume PCR + top-3 strike OI concentration; participant nets from the nsccl file. All rolling stats are per-symbol groupbys with shift(1) where "prior" is meant.</p>
+
+<h3>4.3 Ranking, model, and walk-forward protocol</h3>
+<pre>
+<span class="c"># 1. Cross-sectional rank: every feature → its percentile within the DAY</span>
+rank_features(p):  r[f] = p.groupby("date")[f].rank(pct=True)     <span class="c"># for all 57 features</span>
+
+<span class="c"># 2. Model (exact hyperparameters):</span>
+HistGradientBoostingClassifier(max_iter=250, learning_rate=0.06, max_depth=4,
+                               min_samples_leaf=60, l2_regularization=1.0,
+                               random_state=42)
+
+<span class="c"># 3. Walk-forward (the anti-leakage core):</span>
+months = all calendar months in panel
+first 3 months  → initial training pool ONLY (never scored)
+every later month m:  train on ALL rows with month &lt; m  →  predict month m  →  OOS
+per day: top-10 by prob = the watchlist; hit rate = mean(y_move of top-10)
+walk-forward hit rate  =  mean over OOS days of daily top-10 hit rate
+</pre>
+<div class="box key"><div class="bt">Why this is leak-proof by construction</div>
+<p>The model that scores day D has never seen any row from D's month or later. Features are day-cross-sectional ranks, so a feature can't smuggle information across time. The physically-destructive test: re-scoring 2025-08-29 with the full panel vs a panel truncated at 2025-08-29 produced <b>identical probabilities to 0.00e+00</b> across all 209 scored stocks (§10).</p></div>
+
+<h3>4.4 Selection results</h3>
+<table>
+<tr><th>Window</th><th>OOS hit rate (top-10)</th><th>Base rate</th><th>AUC</th><th>Move capture</th></tr>
+<tr><td>2026 only (Apr–Sep 2026, original build)</td><td>~52%</td><td>20.2%</td><td><b>0.702</b></td><td>—</td></tr>
+<tr><td><b>18 months (2025-04 → 2026-09)</b></td><td><b class="ok">52.7%</b></td><td>20.2%</td><td><b class="ok">0.709</b></td><td><b class="ok">1.48×</b> (top-10 avg next-TR ÷ universe avg)</td></tr>
+</table>
+<p>Monthly OOS hit ranged 42.9%–63.6% across the 18 months — <b>no regime collapse anywhere in the window</b>, including the June-2025 and March-2026 drawdown months.</p>
+
+<!-- ================================================================ 5 -->
+<h2 id="s5"><span class="no">§5</span>Layer 2 — Direction Prior (futures basis)</h2>
+<p><b>Goal:</b> after selection says "this stock will move", tilt the expectation up or down. Two candidate mechanisms were tested; one was rejected on evidence.</p>
+
+<h3>5.1 REJECTED — the a-priori trap scorecard</h3>
+<div class="box reject"><div class="bt">Rejected after testing</div>
+<p>A v1 scorecard of a-priori weighted trap signals (failed breakouts, exhaustion gaps, OI divergence signs...) and a v2 refit of sign-per-feature. <b>Rejection reason: regime fragility</b> — fitted signs flipped between halves of the sample; fade/contrarian rules lost at every horizon. If a direction rule's coefficients depend on which half-year you fit it on, it is not a rule. <i>Do not rebuild this.</i></p></div>
+
+<h3>5.2 VALIDATED — futures basis discount prior</h3>
+<pre>
+basis_pct = (near-month futures price − cash price) / cash price          <span class="c"># per stock-day</span>
+<span class="c"># per-symbol 20-day rolling, then SHIFTED (prior window excludes today):</span>
+_bm = rolling20_mean(basis_pct)  → shifted 1
+_bs = rolling20_std (basis_pct)  → shifted 1
+basis_z = (basis_pct − _bm_shifted) / _bs_shifted
+
+prior = −1  if basis_z ≤ −1.5     <span class="c"># deep DISCOUNT → bearish lean</span>
+prior = +1  if basis_z &gt; +1.5     <span class="c"># deep PREMIUM → (see 5.4 caution)</span>
+prior =  0  otherwise
+</pre>
+<p><b>OOS finding (2026 window, n=145 pick-days):</b> picks carrying basis_z ≤ −1.5 closed <b>DOWN next day 62.1%</b> of the time (range across windows: 62–66%), average move −1.14% close-to-close.</p>
+
+<h3>5.3 Decomposition — where the basis edge actually lives</h3>
+<div class="box finding"><div class="bt">Finding: the basis prior is an OVERNIGHT lens, not an intraday filter</div>
+<p>Of the discount-day −1.14% average: ≈ <b>−0.45% is the overnight gap</b>, and only ≈ <b>−0.25% remains from 9:45→15:10</b>. Consequences that shaped the system:</p>
+<ul>
+<li>Basis discount works as <b>positional/overnight context</b> (why we lean short, why we're wary of longs on discounted names) — NOT as an intraday entry filter.</li>
+<li>Tested as a morning filter (skip OR-up longs on discounted names): win rate 69.4% vs 69.9% — <b>no effect</b>. The morning tape overrides the evening prior.</li>
+<li>Override finding: SHORT ★★-prior picks whose 9:45 tape is UP → <b>58.8% continued up</b>. The 9:45 confirmation outranks the basis prior every time.</li>
+</ul></div>
+
+<h3>5.4 Premium observation (unvalidated, small n — noted, not a rule)</h3>
+<p><span class="tag t-obs">Observation</span> PREMIUM picks (basis_z &gt; +1.5) made the <i>weakest</i> OR-up longs in the 2026 window: 53.8% win, +0.15% avg (n=26) vs neutral-basis 72.2% / +1.10% (n=144); discount × OR-up was 75.0% (n=16). Interesting, counterintuitive, too small to act on. Carried as a watch-item for the paper-trading log.</p>
+
+<!-- ================================================================ 6 -->
+<h2 id="s6"><span class="no">§6</span>Layer 3 — The 9:45 Morning Reveal</h2>
+<p><b>Goal:</b> convert "will move" + "leans down" into an actual intraday entry with a structural trigger — no indicators, just the market's first real verdict.</p>
+
+<h3>6.1 Exact time windows (all IST, from 5-min bars)</h3>
+<table>
+<tr><th>Window</th><th>Clock</th><th>Bar minute-of-day (mod)</th><th>Meaning</th></tr>
+<tr><td>Opening range OR15</td><td>9:15 – 9:30</td><td>555 – 569</td><td>Range high/low = <code>or15_h</code> / <code>or15_l</code></td></tr>
+<tr><td>Confirmation bar</td><td>9:30 – 9:45</td><td>570 – 584</td><td><code>c945</code> = close of the LAST bar in this window (the 9:40–9:45 bar) = entry price</td></tr>
+<tr><td>Rest of day (outcome)</td><td>9:45 – 15:10</td><td>585 – 910</td><td>Exit = close of the LAST bar STARTING ≤ 15:10 (on ~30% of days the 15:10–15:15 bar; session runs to 15:30)</td></tr>
+</table>
+<div class="box warning"><div class="bt">Convention trap (documented bug class)</div>
+<p>"15:10 exit" means the last bar whose START minute ≤ 15:10 — <b>not</b> the last bar ending before 15:10, and <b>not</b> the 15:25 close. All stages use <code>between(585, 910)</code> on bar-start minutes. Any simulator that deviates will disagree with the morning table on ~30% of trades by the 15:10–15:15 bar's return.</p></div>
+
+<h3>6.2 Rules</h3>
+<pre>
+LONG : evening Top-10 pick  AND  c945 &gt; or15_h    → buy at c945, exit 15:10 (or stop)
+SHORT: evening Top-10 pick  AND  c945 &lt; or15_l    → short at c945, exit 15:10 (or stop)
+no breakout (or15_l ≤ c945 ≤ or15_h)              → NO TRADE in that stock
+costs: COST = 0.15% round trip on every trade (brokerage + STT + slippage estimate)
+rod_ret = rod_c / c945 − 1        <span class="c"># rest-of-day return from the 9:45 entry</span>
+</pre>
+
+<h3>6.3 Stage-3 results (Apr–Sep 2026 window, the first proof)</h3>
+<table>
+<tr><th>Side</th><th>Trades</th><th>Win %</th><th>Net avg</th><th>Worst trade</th><th>Losing months</th></tr>
+<tr><td>LONG (OR-up)</td><td>186</td><td class="ok">69.9%</td><td class="ok">+0.95%</td><td>−5.64%</td><td>0 of 6</td></tr>
+<tr><td>SHORT (OR-dn)</td><td>205</td><td>57.1%</td><td>+0.18%</td><td>−9.48%</td><td>1 of 6 (Jun, −0.21%/trade)</td></tr>
+</table>
+<p>Combined book (1× long / 0.5× short): +195pp over 6 months, 106/110 days traded, +1.84%/day average, 68% win-days. <b>Same-day control:</b> ALL OR-up stocks that day: 45.2% up, −0.10% avg — picks OR-up: 72.6%, +0.60%. The edge is the <b>pick × breakout interaction</b>, not the breakout alone.</p>
+
+<!-- ================================================================ 7 -->
+<h2 id="s7"><span class="no">§7</span>Layer 4 — Full 2025→2026 Backtest &amp; Regime Analysis</h2>
+<p><b>Motivation (user's correct objection):</b> rejecting the short side on the Apr–Sep 2026 window alone could be regime bias — both sides had to be tested across 18 months with regime segmentation before any long-only / short-inclusion decision. <i>This stage superseded the 2026-only training window by explicit user request.</i></p>
+
+<h3>7.1 Setup</h3>
+<ul>
+<li>Warmup from 2024-10-01 seeds rolling indicators (ATR14, 60d averages, 52w-high proxy) so 2025-01-01 features are properly formed. <code>HARVEST_FROM=2024-10-01</code>, <code>TRAIN_FROM=2025-01-01</code>.</li>
+<li>Walk-forward OOS picks start 2025-04-01 (first 3 months train-only) → 18 OOS months: 2025-04 → 2026-09, 355 mornings, 3,522 pick-days.</li>
+<li>Costs 0.15% round trip; entry 9:45 close; exit last-bar-≤15:10.</li>
+</ul>
+
+<h3>7.2 The 18-month verdict — both sides profitable</h3>
+<table>
+<tr><th>Side</th><th>Trades</th><th>Win %</th><th>Net avg</th><th>Net total</th><th>Losing months</th></tr>
+<tr><td><b>LONG (OR-up)</b></td><td>601</td><td class="ok">59.1%</td><td class="ok">+0.49%</td><td>+294pp</td><td>3 of 18 (worst: Mar-26 −0.69%/trade)</td></tr>
+<tr><td><b>SHORT (OR-dn)</b></td><td>702</td><td class="ok">58.5%</td><td class="ok">+0.32%</td><td>+225pp</td><td>5 of 18 (worst: Jun-25 −0.23%/trade)</td></tr>
+</table>
+<div class="box finding"><div class="bt">Finding: the 2026 window flattered longs and slandered shorts</div>
+<p>In calendar <b>2025</b> shorts were the BETTER side (60.2% win, +0.40%, +140pp vs longs 57.3%, +0.38%, +124pp). In <b>2026</b> longs dominate (61.2%, +0.62% vs shorts 56.9%, +0.24%). Conclusion: dropping shorts after the first six-month look would have been exactly the regime bias the user suspected. <b>Both sides stay.</b></p></div>
+
+<h3>7.3 Regime segmentation</h3>
+<h4>A. Descriptive (full-month Nifty return / VIX average — explains, but month return uses future info)</h4>
+<table>
+<tr><th>Segment</th><th>LONG win / avg</th><th>SHORT win / avg</th></tr>
+<tr><td>Nifty UP month</td><td class="regime-good">64.3% / +0.77%</td><td>57.8% / +0.16%</td></tr>
+<tr><td>Nifty DOWN month</td><td>53.6% / +0.20%</td><td class="regime-good">59.4% / +0.50%</td></tr>
+<tr><td>VIX high (≥ 12.8)</td><td class="regime-good">62.4% / +0.68%</td><td>55.9% / +0.09%</td></tr>
+<tr><td>VIX low (&lt; 12.8)</td><td>55.8% / +0.30%</td><td class="regime-good">61.5% / +0.58%</td></tr>
+<tr><td>Nifty down AND VIX high (crash-chop)</td><td class="regime-bad">46.7% / +0.03% (n=60)</td><td class="regime-bad">50.7% / −0.05% (n=71)</td></tr>
+</table>
+<h4>B. Tradeable (prior month's Nifty return / prior month's VIX — knowable at trade time)</h4>
+<table>
+<tr><th>Prior-month regime</th><th>LONG win / avg</th><th>SHORT win / avg</th></tr>
+<tr><td>Nifty up</td><td>59.1% / +0.45%</td><td>58.7% / +0.21%</td></tr>
+<tr><td>Nifty down</td><td>59.0% / +0.55%</td><td>58.4% / +0.46%</td></tr>
+<tr><td>VIX ≥ 12.9</td><td class="regime-good">61.1% / +0.63%</td><td>56.1% / +0.12%</td></tr>
+<tr><td>VIX &lt; 12.9</td><td>56.8% / +0.33%</td><td class="regime-good">61.1% / +0.53%</td></tr>
+</table>
+<div class="box finding"><div class="bt">Regime findings</div>
+<ul>
+<li><b>Both sides profitable in every tradeable regime split</b> — no regime justifies switching a side off.</li>
+<li>The Nifty-trend tilt mostly <b>washes out</b> with prior-month info (up/down longs: +0.45% vs +0.55% — noise). The descriptive contrast is coincident-month storytelling, not an exploitable signal.</li>
+<li>The <b>VIX tilt survives</b> the tradeable test: after high-VIX months longs do best, after low-VIX months shorts do best. It is a <b>candidate hypothesis for forward testing — not a rule</b> (fit on this sample).</li>
+<li>The crash-chop corner (Nifty down + VIX high, 11% of pick-days) flattens BOTH sides to ~50%/~0%. Identified here with future info; a real-time version would need an intramonth trailing check.</li>
+</ul></div>
+
+<h3>7.4 Risk profile of the unarmored book (why Layer 5 existed)</h3>
+<ul>
+<li>Max losing streaks: 8 trades both sides. Worst trades: long −11.07%, short −9.71%.</li>
+<li>Per-day P&amp;L (1× each side): +1.50%/day average, 57% win-days, <b>worst day −21.39%</b> (2025-12-09: six correlated longs — AMBER −5.25, PGEL −6.89, GODREJPROP −4.56, KALYANKJIL −2.60, BSE −1.89, COFORGE −0.19 — on a gap-down tape), best day +31.15%.</li>
+<li>Combined 1×long/0.5×short: +407pp, +1.18%/day, 60% win-days, worst day −15.25%.</li>
+<li>Same-day control (18 months): all OR-up stocks 46.4% / −0.10% vs picks 61.9% / +0.60%.</li>
+</ul>
+<p>→ One correlated morning could erase a month of profit. This is the problem the KAVACH armor solves (§8).</p>
+
+<!-- ================================================================ 8 -->
+<h2 id="s8"><span class="no">§8</span>Layer 5 — The KAVACH Armor (Sniper Protocol v2)</h2>
+<p><b>User spec, verbatim intent:</b> trade only 1–2 best stocks a day; disaster SL so no morning wipes weeks of profit; keep quantity — no filters that reduce trade days; only filter a side when MORE than 3 stocks are picked for breakout or breakdown.</p>
+
+<h3>8.1 The rule (executable spec — <code>protocol_v2.py</code>)</h3>
+<pre>
+THRESHOLD = 3      TOPN = 2      SL_PCT = 0.01      SL_SLIP = 0.0005      COST = 0.0015
+
+At 9:45, among the evening Top-10 picks:
+  LONG side candidates : c945 &gt; or15_h          SHORT side candidates: c945 &lt; or15_l
+  PER SIDE:  n ≤ 3  → trade ALL of them
+             n &gt; 3  → trade the TOPN=2 with the SMALLEST  range20
+                      range20 = (prior20H − prior20L) / c945      <span class="c"># prior20H/L =</span>
+                      <span class="c"># rolling-20d max-high / min-low, shifted 1 day (EOD-known)</span>
+  ARMOR: bracket stop at 1.0% adverse from the 9:45 entry — placed WITH the order
+  EXIT : 15:10 if not stopped. Zero OR confirmations on the day → NO trades.
+</pre>
+
+<h3>8.2 Why range20 is the ranker (the "deeper stock selection")</h3>
+<p>Every signal legitimately available at 9:45 was tested as a within-day ranker (breakout margin, OR width, aligned gap, model prob, basis_z, v45_ratio, 20d-range breakout freshness, stop distance, range20). Honest headline: <b>no feature reliably separates "best" from "rest" within a day</b> — the top-ranked underperformed the rest in 2025 and overperformed in 2026. The per-trade edge is roughly homogeneous across confirmed candidates, so <b>the cap itself is the protection and the ranker should be chosen for risk, not hoped-for alpha.</b></p>
+<p>On the &gt;3-candidate side-days where the rule actually applies (101 side-days, 519 candidates):</p>
+<table>
+<tr><th>Ranker (top-2)</th><th>2025 win / avg / worst</th><th>2026 win / avg / worst</th></tr>
+<tr><td><b>range20 (calmest)</b></td><td class="regime-good"><b>76.0% / +1.22% / −5.20%</b></td><td class="regime-good"><b>55.1% / +0.48% / −5.64%</b></td></tr>
+<tr><td>model prob</td><td>66.3% / +1.08% / −6.89%</td><td>58.2% / +0.70% / −9.71%</td></tr>
+<tr><td>tightest stop distance</td><td>74.0% / +1.01% / −5.25%</td><td>49.0% / +0.39% / −9.71%</td></tr>
+<tr><td>all candidates (no cap)</td><td>~57% / +0.87% / −6.89%</td><td>~55% / +0.36% / −9.71%</td></tr>
+</table>
+<p>range20 is the only ranker that beats the baseline in BOTH periods and cuts the worst trade in both. Story: among confirmed breakouts, the quietest name makes the cleanest trade; the wild ranges are where −10% days live.</p>
+
+<h3>8.3 The disaster SL — level chosen on 2025, validated on 2026</h3>
+<p>Simulated bar-by-bar on real 5-min paths of all 986 v2 trades. Conservative fills: if a bar GAPS through the stop, you fill at the bar open (worse than the stop); stopped trades pay COST + 0.05% extra slippage. Rig self-verification: the no-stop case reproduces the morning-table book exactly (0 mismatches) before any stop is trusted.</p>
+<table>
+<tr><th>Stop</th><th>2025 total</th><th>2026 total</th><th>Worst trade</th><th>Worst day</th><th>% stopped</th></tr>
+<tr><td>none</td><td>+159pp</td><td>+212pp</td><td class="bad">−11.07%</td><td class="bad">−15.25%</td><td>—</td></tr>
+<tr><td>−0.50%</td><td>+130pp</td><td>+99pp</td><td>−0.70%</td><td>−3.50%</td><td>67%</td></tr>
+<tr><td>−0.75%</td><td>+179pp</td><td>+165pp</td><td>−0.95%</td><td>−3.80%</td><td>55%</td></tr>
+<tr><td><b>−1.00%</b></td><td class="regime-good"><b>+193pp</b></td><td class="regime-good"><b>+225pp</b></td><td>−1.20%</td><td>−4.80%</td><td>46%</td></tr>
+<tr><td>−1.25%</td><td>+181pp</td><td>+237pp</td><td>−1.45%</td><td>−5.80%</td><td>40%</td></tr>
+<tr><td>−1.50%</td><td>+172pp</td><td>+235pp</td><td>−1.70%</td><td>−5.62%</td><td>35%</td></tr>
+<tr><td>OR far side</td><td>+201pp</td><td>+245pp</td><td class="bad">−6.94%</td><td>−8.04%</td><td>19%</td></tr>
+<tr><td>OR mid</td><td>+183pp</td><td>+254pp</td><td class="bad">−5.60%</td><td>−8.66%</td><td>33%</td></tr>
+</table>
+<div class="box finding"><div class="bt">Finding: −1.0% raises total P&amp;L in BOTH independent periods</div>
+<p>The excursions a 1% stop cuts are disproportionately the ones that keep going: +193 vs +159pp (2025), +225 vs +212pp (2026), worst trade −11.07% → −1.20%, worst day −15.25% → −4.80%. Structural stops (OR-based) win on totals but leave −5.6 to −6.9% trades on the table — they fail the disaster duty because price can run far from the OR before 9:45. Tighter stops (−0.5%) bleed to whipsaw. <b>Honest cost: 46% of trades die at the stop; per-trade win rate drops to ~48%.</b> The average trade still nets +0.42% because winners are untouched.</p></div>
+
+<h3>8.4 Quantity check (the "no gaps between trade days" constraint)</h3>
+<ul>
+<li><b>346 of 355 mornings trade (97.5%)</b>; mean 2.85 trades/day, median 3, max 6.</li>
+<li>Top-2 cap beat top-1 cap (avg +0.38% vs +0.33%; 2025: +0.31% vs +0.20%) → keep 2.</li>
+<li><b>The 9 zero-OR mornings must stay flat.</b> Tested forcing the top-prob pick without confirmation: 33% win, −2.09% avg (contains −11.1% and −9.8% outcomes). The confirmation IS the edge; forcing trades to fill the calendar is how capital dies.</li>
+</ul>
+
+<h3>8.5 Final KAVACH-945 performance (18 OOS months, net, armored)</h3>
+<table>
+<tr><th>Metric</th><th>Value</th><th>Metric</th><th>Value</th></tr>
+<tr><td>Trades (L / S)</td><td>986 (493 / 493)</td><td>Mornings traded</td><td>346 / 355</td></tr>
+<tr><td>Net avg / trade</td><td class="ok">+0.42%</td><td>Trades / day</td><td>2.85 (median 3, max 6)</td></tr>
+<tr><td>Net avg / day (1× book)</td><td class="ok">+1.21%</td><td>Win-days</td><td>58%</td></tr>
+<tr><td>Total (18 mo, 1× book)</td><td class="ok">+417pp</td><td>Losing months</td><td class="ok">1 of 18 (2025-05, ≈breakeven)</td></tr>
+<tr><td>Worst trade</td><td class="ok">−1.20% (realized stop incl. costs)</td><td>Worst day</td><td class="ok">−4.80% (= 4 stops × −1.2%)</td></tr>
+<tr><td>Best day</td><td>+17.55%</td><td>Stopped trades</td><td>453/986 (46%), avg −1.20%</td></tr>
+<tr><td>2025 avg/trade</td><td>+0.38%</td><td>2026 avg/trade</td><td>+0.47%</td></tr>
+<tr><td>Max losing streak (L / S)</td><td>7 / 9</td><td>Risk-adjusted (avg÷worst day)</td><td class="ok">0.252 — 3.6× the unarmored book's 0.070</td></tr>
+</table>
+<p class="small">Every disaster-scale day under armor ends as "all trades stopped": e.g. 2026-04-02 (BLUESTARCO, COFORGE, DIXON, FORCEMOT — four −1.2% stops), 2025-06-18, 2025-06-24, 2026-02-02, 2026-08-06 — each −4.80%, i.e., one armored morning costs 4 days of average profit, not a month.</p>
+<p>Full monthly L/S table: <a href="#a1">Appendix A</a>.</p>
+
+<!-- ================================================================ 9 -->
+<h2 id="s9"><span class="no">§9</span>Layer 6 — Robustness Battery</h2>
+<p>Four stress questions asked by the operator, answered on the same 986-trade armored book, re-simulated from raw 5-min bars.</p>
+
+<h3>9.1 Entry latency (what if we enter 5 minutes late?)</h3>
+<table>
+<tr><th>Entry</th><th>avg/trade</th><th>Total</th><th>Worst trade</th><th>Worst day</th><th>Drift paid</th></tr>
+<tr><td><b>9:45 (protocol)</b></td><td class="ok">+0.42%</td><td class="ok">+417pp</td><td>−1.20%</td><td>−4.80%</td><td>—</td></tr>
+<tr><td>9:50 (5 min late)</td><td>+0.41%</td><td>+401pp</td><td>−1.20%</td><td>−4.80%</td><td>+0.04%</td></tr>
+<tr><td>9:55 (10 min late)</td><td>+0.34%</td><td>+339pp</td><td>−1.20%</td><td>−4.80%</td><td>+0.07%</td></tr>
+</table>
+<p>5 minutes late costs 3.8% of total edge (tolerable execution lag); 10 minutes costs 18.7% (not). <b>Place the order in the same minute as the confirmation.</b> The armor is latency-proof: worst trade/day identical at every latency.</p>
+
+<h3>9.2 Exit time (what if I close at 15:10 — do I lose vs holding to the square-off?)</h3>
+<table>
+<tr><th>Exit</th><th>14:45</th><th>15:00</th><th><b>15:10</b></th><th>15:20</th><th>15:25 (close)</th></tr>
+<tr><td>avg/trade</td><td>+0.40%</td><td>+0.42%</td><td class="ok"><b>+0.42%</b></td><td>+0.44%</td><td>+0.44%</td></tr>
+<tr><td>total</td><td>+397pp</td><td>+417pp</td><td class="ok"><b>+417pp</b></td><td>+437pp</td><td>+435pp</td></tr>
+</table>
+<p><b>Close at 15:10 yourself.</b> The edge is flat across the 14:45–15:25 band (±5%); holding to the close would add ~0.02%/trade — noise — while the broker's auto square-off typically charges ₹50–100+ per forced position. Exit timing is not a fragile parameter: the money is in selection + 9:45 confirmation, not the exit minute.</p>
+
+<h3>9.3 The 20k account at 4× leverage, risking 1–2–3% per trade</h3>
+<p>Sizing: true risk per trade — a stopped trade loses exactly R of capital (stop + costs + slip = 1.2% of notional) → <code>notional = R × C / 0.012</code>, proportional within a morning, capped by 4× buying power. Full reinvestment, 18 months, backtest nets.</p>
+<table>
+<tr><th>Risk/trade</th><th>Notional/trade</th><th>Final capital</th><th>Return</th><th>Max DD</th><th>Days 4×-capped</th><th>Avg exposure</th></tr>
+<tr><td><b>1%</b></td><td>0.83× C</td><td class="ok"><b>₹548,675</b></td><td>+2,643%</td><td>−9.8%</td><td>24 / 346</td><td>2.36×</td></tr>
+<tr><td>2%</td><td>1.67× C</td><td>₹2,976,185</td><td>+14,781%</td><td>−16.9%</td><td>201 / 346</td><td>3.60×</td></tr>
+<tr><td>3%</td><td>2.50× C</td><td>₹3,910,550</td><td>+19,453%</td><td>−20.5%</td><td>320 / 346</td><td>3.89×</td></tr>
+</table>
+<div class="box warning"><div class="bt">Three honest warnings on the compounding table</div>
+<ul>
+<li><b>3% risk is leverage-fiction:</b> the 4× cap downsizes it on 320 of 346 mornings; exposure 3.89× leaves zero buffer for the broker's margin haircuts on volatile names. Choose 1% (₹200 initial risk, notional ≈ ₹16.7k).</li>
+<li><b>Broker plan dominates at 20k:</b> with ₹20/order-style flat fees (~+0.10%/trade), finals drop to ₹244k / ₹871k / ₹1.04M — roughly HALVED. Use %-based (or zero) intraday brokerage.</li>
+<li>Taxes not modeled (intraday = business income at slab); no withdrawals; these are backtest-edge extrapolations, not forecasts.</li>
+</ul></div>
+
+<h3>9.4 Monte Carlo — 10,000 day-block bootstrap paths</h3>
+<p>Method: resample whole TRADING DAYS with replacement (preserves same-day correlation — all-stops disaster mornings stay intact; trade-level iid bootstrap would understate drawdowns), compound the armored day-sums at each risk level.</p>
+<table>
+<tr><th>Risk</th><th>Realized</th><th>MC median</th><th>p5</th><th>p25</th><th>p75</th><th>p95</th><th>P(&lt;20k)</th><th>Median DD</th><th>p95 DD</th></tr>
+<tr><td>1%</td><td>₹548,675</td><td>₹544,787</td><td>₹231,495</td><td>₹383,682</td><td>₹789,187</td><td>₹1,319,795</td><td class="ok">0.0%</td><td>−12.7%</td><td>−19.5%</td></tr>
+<tr><td>2%</td><td>₹2,976,185</td><td>₹2,876,524</td><td>₹789,007</td><td>₹1,693,138</td><td>₹5,040,037</td><td>₹11,712,191</td><td class="ok">0.0%</td><td>−19.3%</td><td>−29.3%</td></tr>
+<tr><td>3%</td><td>₹3,910,550</td><td>₹3,837,718</td><td>₹868,341</td><td>₹2,065,568</td><td>₹7,142,634</td><td>₹17,176,034</td><td class="ok">0.0%</td><td>−21.5%</td><td>−32.6%</td></tr>
+</table>
+<ul>
+<li><b>Sanity:</b> realized ≈ MC median at every risk level — the actual sequence is a typical sequence, not a lucky one.</li>
+<li><b>Half-edge stress</b> (every trade net × 0.5, i.e., assume live edge decays 50%): 1% → median ₹108k, 2% → ₹268k, 3% → ₹312k, P(&lt;20k) still 0%. The geometry survives edge decay; it does not survive edge death.</li>
+<li><b>Scope, stated plainly:</b> MC validates the arithmetic and the geometry (sizing, stops, correlation, sequence). It CANNOT validate that the edge persists — regime change, crowding, live slippage and impact are outside its vocabulary. P(loss)=0% is a statement about resampled 2025-26 history, not about the future.</li>
+</ul>
+
+<h3>9.5 The random-watchlist control (the bug/look-ahead detector)</h3>
+<div class="box finding"><div class="bt">Control result — 11.4σ separation</div>
+<p>60 random 10-stock watchlists per day (drawn from the same universe, same dates) were pushed through the <b>identical pipeline</b>: OR confirmation → &gt;3 cap → range20 top-2 → same costs, no SL (same measure as the raw book). Random control: <b>−0.142% ± 0.046% per trade</b>. Real book, same measure: <b>+0.376%</b>. Z-score: <b>11.4σ</b>.</p>
+<p><b>Why this matters:</b> a sign error, cost omission, or accounting bug in the pipeline would lift the control's average too — the control shares all the machinery. Only genuine selection edge can separate the two distributions by 11 standard deviations. This is the strongest single piece of evidence that the edge is real <i>within this data</i>.</p></div>
+
+<!-- ================================================================ 10 -->
+<h2 id="s10"><span class="no">§10</span>Verification &amp; Audit Ledger</h2>
+<p>Every audit demanded by the operator ("real results, no logic mismatch, no look-ahead bias, no error"), with outcomes. Re-run these after any rebuild.</p>
+<table>
+<tr><th>Audit</th><th>Method</th><th>Result</th></tr>
+<tr><td>Look-ahead leakage</td><td>Score 2025-08-29 with full panel vs panel physically truncated at that date; compare probabilities</td><td class="ok">max diff 0.00e+00 across all 209 stocks</td></tr>
+<tr><td>Walk-forward isolation</td><td>First 3 months train-only; model at month m never sees ≥ m</td><td class="ok">by construction; 18 OOS months re-validated (hit 52.7%)</td></tr>
+<tr><td>Selection integrity</td><td>Random-watchlist control through identical pipeline (§9.5)</td><td class="ok">−0.14% vs +0.38% — 11.4σ</td></tr>
+<tr><td>Manual trade verification</td><td>3 random trades recomputed BY HAND from raw 5-min bars (BSE 2025-12-08; ADANIGREEN 2025-09-22; IDEA 2025-10-06)</td><td class="ok">3/3 exact: OR15 levels, 9:45 entry, 15:10 exit all match; nets match ± cost arithmetic</td></tr>
+<tr><td>SL-simulator self-check</td><td>No-stop case must reproduce the morning-table book from raw bars</td><td class="ok">986/986 paths resolved, 0 close mismatches, max net diff 3.8e-06 (1 trade, sub-paise)</td></tr>
+<tr><td>Armor invariance</td><td>Worst trade / worst day across all 7 timing configurations</td><td class="ok">−1.20% / −4.80% in every configuration</td></tr>
+<tr><td>MC sanity</td><td>Realized path vs MC distribution</td><td class="ok">realized ≈ median at all risk levels</td></tr>
+<tr><td>Data quality</td><td>Upstox 5-min vs NSE bhavcopy (audit_candles.py)</td><td class="ok">OHL 100% match; volume 97.6%; close median gap 0.114% (auction vs trade — expected)</td></tr>
+<tr><td>Corporate actions</td><td>ISIN-continuity stitching (§3.4)</td><td class="ok">4 renames stitched legitimately; 3 dead symbols excluded</td></tr>
+<tr><td>Costs</td><td>0.15% round trip + 0.05% stop slippage on every trade, every table; flat-fee scenario quantified separately</td><td class="ok">applied everywhere</td></tr>
+</table>
+
+<h3>10.1 Bug log (found &amp; fixed during research — do not re-introduce)</h3>
+<table>
+<tr><th>Bug</th><th>Symptom</th><th>Fix / rule</th></tr>
+<tr><td><code>-bool_series</code> in pandas is LOGICAL NOT</td><td>Ad-hoc query produced fake "longs" (a −72% phantom day)</td><td>Never negate a bool column arithmetically; use masks. Backtest code was verified unaffected</td></tr>
+<tr><td>Stop-walk running past exit time</td><td>SL sim diverged 3.3e-02 from archived book</td><td>Bars after the exit minute cannot stop a position closed at exit. Rig self-check caught it</td></tr>
+<tr><td>Exit-convention drift</td><td>~30% of trades mismatched a rebuilt simulator</td><td>Exit = last bar STARTING ≤ 15:10 (mods 585–910) — one convention everywhere</td></tr>
+<tr><td>Candle merge cut-logic</td><td>Backward extension silently dropped newer rows</td><td>Always concat → dedupe(epoch_min) → sort; never slice</td></tr>
+<tr><td>Rename detection by gap/price proximity</td><td>False stitches (CANFINHOME→TATATECH)</td><td>ISIN continuity is the only valid test</td></tr>
+<tr><td>FO bhavcopy "404s" on old dates</td><td>Probe failed for 2024-25 dates</td><td>Was a bash date-slicing bug in the probe; files exist — always test explicit URLs</td></tr>
+<tr><td>python heredoc + bash vars</td><td>NameError on UA</td><td>Define constants inside the python script</td></tr>
+<tr><td>morning.py historical bugs</td><td>date-lambda, build_direction signature, array-truth side comparison, OOS merge without top-10 filter</td><td>All fixed in current code; listed so a rebuild doesn't regress</td></tr>
+</table>
+
+<h3>10.2 Methodology principles (the "no free lunch" list)</h3>
+<ul>
+<li><b>Selection/validation discipline:</b> ranker (range20) and SL level (−1.0%) chosen on 2025-04→12, validated on 2026-01→09, only then reported on the full window. Split-period validation protects against overfitting but is not proof — that's paper-trading's job.</li>
+<li><b>MC uses day-blocks, never trade-iid</b> — same-day trades correlate; iid understates drawdown.</li>
+<li><b>Descriptive vs tradeable regime splits</b> — a "regime" that uses same-month information is storytelling; only prior-information splits are tradeable.</li>
+<li><b>Rejected on evidence:</b> trap scorecards (sign flips), fade/contrarian rules (lose at every horizon), basis as intraday filter (edge is overnight), forced no-confirmation trades (33% win).</li>
+<li><b>Small-n observations carried, not acted on:</b> premium-pick long weakness (n=26), VIX tilt (fit on this sample).</li>
+</ul>
+
+<!-- ================================================================ 11 -->
+<h2 id="s11"><span class="no">§11</span>Complete Rebuild Guide</h2>
+<p>File map, build order, commands, and the verification numbers each stage must reproduce. Workspace layout: everything under <code>engine/</code>; raw files only in <code>/tmp</code>.</p>
+
+<h3>11.1 File map (12 modules)</h3>
+<table class="filemap">
+<tr><th>File</th><th>Responsibility</th></tr>
+<tr><td>config.py</td><td>Paths, URL templates (§3), UA header, dates: HARVEST_FROM=2024-10-01, TRAIN_FROM=2025-01-01; TOP_N=10, QUINTILE=0.80, SEED=42</td></tr>
+<tr><td>harvest.py</td><td>Daily NSE downloads (cash/FO/participant bhavcopy, VIX) → /tmp, parse → append compact aggregates to data/{cash,fut,opt,part,mkt}.csv.gz + data/vix.csv</td></tr>
+<tr><td>backfill.py</td><td>Historic harvest over a date range (used for the Oct-2024 extension)</td></tr>
+<tr><td>features.py</td><td>cash+fut+opt+part+mkt+vix → panel.csv.gz: 57 features (§4.2), labels (§4.1). Groupby-rolling with shift discipline; ratios use prior-window means</td></tr>
+<tr><td>validate.py</td><td>FEATURES list; rank_features (per-day percentile ranks); IC scan vs tr_expand &amp; y_move (→ output/ic_table.csv); walk-forward monthly-retrain loop (§4.3) → output/oos_predictions.csv.gz + metrics.csv</td></tr>
+<tr><td>direction.py</td><td>build_direction(): prior20H/L, basis_z (§5.2), trap features; APRIORI v1 score (kept for the record, REJECTED); evaluate() harness</td></tr>
+<tr><td>candles.py</td><td>5-min candle store via Upstox v3 (§3.2): governor (5/s, 280/min, 1800/30min, 6 workers, 429→700s pause), paise ints, filler-bar drop, resume-safe writes; modes: backfill / daily / window FROM TO / status</td></tr>
+<tr><td>morning.py</td><td>build_morning(): per symbol-day OR15/c945/v45/rod metrics from candles (§6.1) → morning.csv.gz; v45_ratio vs prior-20d median; load_joined(): morning × direction evening-frame × OOS picks (top-10/day) with next-trading-day mapping; COST=0.0015; gap/or_mid/morn_dir/orb_up/orb_dn/prior/rod_ret columns</td></tr>
+<tr><td>scanner.py</td><td>Production evening scan: tonight's Top-10 watchlist with basis prior and range20 for tomorrow</td></tr>
+<tr><td>backtest_full.py</td><td>Stage-4 backtest: OOS from 2025-04-01, monthly L/S tables, regime segments, controls, streaks, per-day P&amp;L</td></tr>
+<tr><td>protocol_v2.py</td><td>THE executable spec of §8: select_book() (THRESHOLD=3, TOPN=2, range20) + apply_sl() (SL_PCT=0.01, SL_SLIP=0.0005, bar-walk with conservative fills) + run()</td></tr>
+<tr><td>audit_candles.py</td><td>Data-quality audit vs bhavcopy (§3.5)</td></tr>
+<tr><td>output/</td><td>All reports (.md per stage + this HTML), oos_predictions.csv.gz, v2_book_trades.csv.gz (986-trade armored book), metrics.csv, ic_table.csv</td></tr>
+</table>
+
+<h3>11.2 Build order &amp; commands</h3>
+<pre>
+<span class="c"># 0. environment: python3 + pandas + numpy + scikit-learn + requests. No other deps.</span>
+<span class="c"># 1. config.py first (paths + URLs + dates). Then:</span>
+python3 backfill.py                 <span class="c"># EOD stores from 2024-10-01 → present (~480 sessions)</span>
+python3 candles.py backfill         <span class="c"># 5-min candles, current year (workspace-safe)</span>
+python3 candles.py window 2025-01-01 2025-12-31   <span class="c"># + 2025 candles for SL studies (99MB! prune after)</span>
+python3 features.py                 <span class="c"># panel.csv.gz (57 features + labels)</span>
+python3 validate.py                 <span class="c"># walk-forward → oos_predictions.csv.gz</span>
+python3 morning.py                  <span class="c"># morning.csv.gz + joined table (needs direction.py)</span>
+python3 backtest_full.py            <span class="c"># Stage-4 tables</span>
+python3 protocol_v2.py              <span class="c"># Stage-5 armored book (needs 2025 candles on disk or /tmp/c25)</span>
+python3 audit_candles.py            <span class="c"># data quality</span>
+<span class="c"># daily production: harvest → (candles daily) → scanner → playbook §12</span>
+</pre>
+
+<h3>11.3 Verification checkpoints (numbers a correct rebuild must reproduce)</h3>
+<table>
+<tr><th>After running</th><th>Expect</th></tr>
+<tr><td>features.py</td><td>panel ~101k rows incl. warmup (89,143 after warmup prune), 271 symbols, y_move base rate ≈ 0.202</td></tr>
+<tr><td>validate.py (18-mo)</td><td>mean OOS hit ≈ 52.7%, mean AUC ≈ 0.709, capture ≈ 1.48×, monthly hit 42.9–63.6%</td></tr>
+<tr><td>morning.py</td><td>~105k stock-days, 268 symbols, 2025-01-01→2026-09-09</td></tr>
+<tr><td>backtest_full.py</td><td>LONG 601/59.1%/+0.49%; SHORT 702/58.5%/+0.32%; worst day −21.39% (2025-12-09)</td></tr>
+<tr><td>protocol_v2.py</td><td><b>986 trades, 346 mornings, 2.85/day, +0.42%/trade, +417pp, worst trade −1.20%, worst day −4.80%, 453 stopped</b></td></tr>
+<tr><td>leakage audit</td><td>2025-08-29 truncated-panel test → 0.00e+00 diff (209 stocks)</td></tr>
+</table>
+<p class="small">Tolerance: exact for counts; ±0.1pp for rates if library versions differ. If protocol_v2 numbers drift, check the exit convention (§6.1) and the stop-walk bound (§10.1) first — those are the two known drift sources.</p>
+
+<!-- ================================================================ 12 -->
+<h2 id="s12"><span class="no">§12</span>Daily Execution Playbook (the operator's card)</h2>
+<pre>
+<span class="y">EVENING (after ~19:00, data posted)</span>
+  1. python3 harvest.py / scanner.py
+  2. Read tonight's Top-10 watchlist (with prob, basis_z, prior, range20).
+  3. Mark basis leans: discount (z≤−1.5) = bearish lean; premium (z&gt;+1.5) = long caution (§5.4).
+  4. Pre-compute range20 ranking for tomorrow. Note OR15 will only be known live.
+
+<span class="y">MORNING 9:15–9:45 (live)</span>
+  5. Watch the 10 names' first 30 minutes. No orders before 9:45. None.
+  6. 9:44: for each pick note price vs forming OR high/low.
+
+<span class="y">9:45 — THE REVEAL</span>
+  7. LONG candidates: price &gt; OR15 high. SHORT candidates: price &lt; OR15 low.
+  8. Per side: ≤3 candidates → all; &gt;3 → the 2 SMALLEST range20.
+  9. Enter at market ≈ 9:45 close, WITH bracket stop 1.0% adverse. Same minute. (§9.1: 5 min late = −4% edge)
+  10. No confirmation on any name → no trades today. Accept. (Forced trades: 33% win, −2.09% avg.)
+
+<span class="y">INTRADAY</span>
+  11. Stops are not negotiable. A stop-out is a −1.2% cost of doing business (46% of trades).
+  12. Expect losing streaks of 7–9 trades. Size so this is noise: risk 1% per trade.
+
+<span class="y">15:10 — EXIT</span>
+  13. Exit all remaining positions manually at ~15:10 (avoids auto square-off charges; §9.2).
+  14. Log every fill in the paper-trading journal (§13).
+</pre>
+<div class="box warning"><div class="bt">Live-vs-backtest gaps to expect</div>
+<ul>
+<li>Entry slippage: backtest fills at the 9:40–9:45 bar close; live market orders on breaking names may fill a few ticks worse (the 5-minute-latitude test §9.1 bounds the damage of small lag).</li>
+<li>The 46% stop-out rate will FEEL worse live than it reads. The system's psychology is: many small amputations, occasional big wins (best day +17.55%, best trade +18.80%).</li>
+<li>Data timing: the evening stack depends on NSE EOD posting (usually by ~18:30–19:00 IST) and Upstox candle availability (same evening).</li>
+</ul></div>
+
+<!-- ================================================================ 13 -->
+<h2 id="s13"><span class="no">§13</span>The Final Gate — Forward Paper-Trading</h2>
+<p><b>Status: NOT YET STARTED. No capital until it passes.</b> The backtest says the machine is sound; only live paper data can say the engine still runs.</p>
+<h3>13.1 Logger specification (proposed)</h3>
+<ul>
+<li><b>Evening record:</b> date, Top-10 with prob / basis_z / prior / range20 — archived before the open (proof of no hindsight).</li>
+<li><b>9:45 record:</b> confirmed candidates per side, the cap decision (n≤3 or top-2 by range20), intended entries + stop levels — logged at 9:45.</li>
+<li><b>Fill log:</b> actual/assumed fills, stop placements, any stop-outs with timestamps, 15:10 exits.</li>
+<li><b>Daily reconciliation:</b> paper nets vs what protocol_v2 would have computed from Upstox bars (same-day tolerance ±0.2%); disagreements investigated immediately.</li>
+<li><b>Rolling scorecard:</b> vs the backtest baseline (output/v2_book_trades.csv.gz): rolling 20-day avg net/trade, win rate, stop rate, worst day. <b>Stop-loss rule for the SYSTEM itself:</b> if rolling-60-trade avg net &lt; 0 with &gt;60% of the backtest's trade count logged → halt, investigate regime (VIX/Nifty), do not "wait for it to come back".</li>
+<li><b>Duration before capital:</b> minimum 3 months AND ≥150 paper trades, including at least one high-VIX stretch.</li>
+</ul>
+<h3>13.2 What would falsify the system (pre-registered)</h3>
+<ul>
+<li>Paper avg/trade &lt; +0.15% over 150+ trades (less than half the backtest edge, beyond MC p5 territory).</li>
+<li>Worst paper day worse than −6% (armor breach — execution problem, halt immediately).</li>
+<li>Selection layer decay: nightly top-10 mover hit &lt; 35% over a rolling 40-day window (base 20%, backtest 52.7%).</li>
+<li>Correlation regime break: same-day candidates stop confirming (zero-OR mornings &gt; 15% of days).</li>
+</ul>
+
+<!-- ================================================================ A1 -->
+<h2 id="a1"><span class="no">A</span>Appendix A — Full Monthly Tables (18 OOS months, net of 0.15% cost)</h2>
+<h3>A.1 Unarmored Stage-4 book (all confirmed candidates, no cap, no SL)</h3>
+<table>
+<tr><th>Month</th><th>L n</th><th>L win%</th><th>L avg</th><th>S n</th><th>S win%</th><th>S avg</th></tr>
+<tr><td>2025-04</td><td>36</td><td>77.8</td><td>+1.06</td><td>39</td><td>71.8</td><td>+1.00</td></tr>
+<tr><td>2025-05</td><td>36</td><td>55.6</td><td>+0.24</td><td>37</td><td>48.6</td><td>−0.07</td></tr>
+<tr><td>2025-06</td><td>36</td><td>61.1</td><td>+0.57</td><td>38</td><td>57.9</td><td>−0.23</td></tr>
+<tr><td>2025-07</td><td>42</td><td>50.0</td><td>+0.23</td><td>52</td><td>57.7</td><td>+0.25</td></tr>
+<tr><td>2025-08</td><td>23</td><td>39.1</td><td>−0.67</td><td>50</td><td>62.0</td><td>+1.26</td></tr>
+<tr><td>2025-09</td><td>50</td><td>58.0</td><td>+0.72</td><td>24</td><td>70.8</td><td>+0.70</td></tr>
+<tr><td>2025-10</td><td>37</td><td>59.5</td><td>+0.58</td><td>33</td><td>48.5</td><td>−0.01</td></tr>
+<tr><td>2025-11</td><td>33</td><td>54.5</td><td>+0.43</td><td>33</td><td>72.7</td><td>+0.59</td></tr>
+<tr><td>2025-12</td><td>35</td><td>54.3</td><td>−0.26</td><td>41</td><td>56.1</td><td>+0.02</td></tr>
+<tr><td>2026-01</td><td>32</td><td>56.2</td><td>+0.43</td><td>47</td><td>66.0</td><td>+1.36</td></tr>
+<tr><td>2026-02</td><td>19</td><td>57.9</td><td>+0.46</td><td>69</td><td>56.5</td><td>+0.10</td></tr>
+<tr><td>2026-03</td><td>34</td><td>32.4</td><td>−0.69</td><td>35</td><td>54.3</td><td>−0.13</td></tr>
+<tr><td>2026-04</td><td>30</td><td>73.3</td><td>+1.42</td><td>29</td><td>62.1</td><td>+0.04</td></tr>
+<tr><td>2026-05</td><td>26</td><td>65.4</td><td>+0.96</td><td>36</td><td>47.2</td><td>+0.02</td></tr>
+<tr><td>2026-06</td><td>36</td><td>61.1</td><td>+0.52</td><td>45</td><td>46.7</td><td>−0.25</td></tr>
+<tr><td>2026-07</td><td>45</td><td>73.3</td><td>+1.40</td><td>44</td><td>59.1</td><td>+0.32</td></tr>
+<tr><td>2026-08</td><td>39</td><td>64.1</td><td>+0.42</td><td>37</td><td>62.2</td><td>+0.33</td></tr>
+<tr><td>2026-09</td><td>12</td><td>66.7</td><td>+0.40</td><td>13</td><td>61.5</td><td>+0.07</td></tr>
+<tr><td><b>TOTAL</b></td><td><b>601</b></td><td><b>59.1</b></td><td><b>+0.49</b></td><td><b>702</b></td><td><b>58.5</b></td><td><b>+0.32</b></td></tr>
+</table>
+
+<h3>A.2 KAVACH-945 armored book (cap + range20 + 1% disaster SL)</h3>
+<table>
+<tr><th>Month</th><th>L n</th><th>L win%</th><th>L avg</th><th>S n</th><th>S win%</th><th>S avg</th></tr>
+<tr><td>2025-04</td><td>22</td><td>72.7</td><td>+1.50</td><td>19</td><td>52.6</td><td>+0.80</td></tr>
+<tr><td>2025-05</td><td>27</td><td>44.4</td><td>+0.05</td><td>32</td><td>40.6</td><td>−0.07</td></tr>
+<tr><td>2025-06</td><td>29</td><td>48.3</td><td>+0.60</td><td>25</td><td>44.0</td><td>+0.13</td></tr>
+<tr><td>2025-07</td><td>38</td><td>39.5</td><td>+0.13</td><td>36</td><td>47.2</td><td>+0.14</td></tr>
+<tr><td>2025-08</td><td>21</td><td>28.6</td><td>−0.26</td><td>34</td><td>38.2</td><td>+0.53</td></tr>
+<tr><td>2025-09</td><td>37</td><td>64.9</td><td>+1.04</td><td>19</td><td>47.4</td><td>+0.18</td></tr>
+<tr><td>2025-10</td><td>32</td><td>46.9</td><td>+0.13</td><td>30</td><td>40.0</td><td>−0.01</td></tr>
+<tr><td>2025-11</td><td>27</td><td>55.6</td><td>+0.82</td><td>26</td><td>69.2</td><td>+0.62</td></tr>
+<tr><td>2025-12</td><td>28</td><td>46.4</td><td>+0.35</td><td>30</td><td>50.0</td><td>+0.28</td></tr>
+<tr><td>2026-01</td><td>26</td><td>46.2</td><td>+0.71</td><td>32</td><td>56.2</td><td>+1.49</td></tr>
+<tr><td>2026-02</td><td>19</td><td>42.1</td><td>+0.27</td><td>38</td><td>52.6</td><td>+0.26</td></tr>
+<tr><td>2026-03</td><td>22</td><td>27.3</td><td>+0.01</td><td>19</td><td>47.4</td><td>+0.35</td></tr>
+<tr><td>2026-04</td><td>30</td><td>50.0</td><td>+0.76</td><td>19</td><td>52.6</td><td>+0.23</td></tr>
+<tr><td>2026-05</td><td>24</td><td>33.3</td><td>+0.27</td><td>27</td><td>40.7</td><td>+0.42</td></tr>
+<tr><td>2026-06</td><td>32</td><td>56.2</td><td>+0.72</td><td>31</td><td>29.0</td><td>−0.24</td></tr>
+<tr><td>2026-07</td><td>36</td><td>61.1</td><td>+1.24</td><td>31</td><td>48.4</td><td>+0.35</td></tr>
+<tr><td>2026-08</td><td>31</td><td>48.4</td><td>+0.38</td><td>35</td><td>45.7</td><td>+0.20</td></tr>
+<tr><td>2026-09</td><td>12</td><td>58.3</td><td>+0.18</td><td>10</td><td>50.0</td><td>−0.03</td></tr>
+<tr><td><b>TOTAL</b></td><td><b>493</b></td><td><b>48.9</b></td><td><b>+0.53</b></td><td><b>493</b></td><td><b>46.9</b></td><td><b>+0.32</b></td></tr>
+</table>
+<p class="small">Win rates are lower than A.1 because stop-outs count as losses; the money is equal or better (totals: +417pp armored vs +417/… unarmored combined at different book sizes — compare §7.4 vs §8.5 on the same 1× basis). Losing months (day-sum): A.2 has exactly one — 2025-05, ≈breakeven.</p>
+
+<!-- ================================================================ A2 -->
+<h2 id="a2"><span class="no">B</span>Appendix B — Glossary</h2>
+<table>
+<tr><th>Term</th><th>Definition</th></tr>
+<tr><td>OR15 / or15_h / or15_l</td><td>Opening range 9:15–9:30 (bar minutes 555–569): its high / low</td></tr>
+<tr><td>c945</td><td>Close of the 9:40–9:45 bar (last bar of window 570–584) = the entry price</td></tr>
+<tr><td>rod_ret</td><td>Rest-of-day return: close of last bar starting ≤15:10 ÷ c945 − 1</td></tr>
+<tr><td>orb_up / orb_dn</td><td>9:45 price above OR high / below OR low (the confirmation)</td></tr>
+<tr><td>basis_z</td><td>(basis_pct − prior-20d mean) ÷ prior-20d std, per symbol; ±1.5 thresholds</td></tr>
+<tr><td>prior20H / prior20L</td><td>Rolling 20-day max high / min low, shifted one day (known at the prior close)</td></tr>
+<tr><td>range20</td><td>(prior20H − prior20L) / c945 — the calmness ranker of Layer 4/5</td></tr>
+<tr><td>y_move</td><td>Label: next-day true-range % in the top quintile of that day's cross-section (base 20.2%)</td></tr>
+<tr><td>tr_expand / next_tr_pct</td><td>Tomorrow's true range as % of today's close (the "how much it moved" measure)</td></tr>
+<tr><td>Walk-forward OOS</td><td>Monthly retrain; model scoring month m is trained only on months &lt; m; first 3 months train-only</td></tr>
+<tr><td>COST / SL_SLIP</td><td>0.15% round-trip cost on every trade / extra 0.05% slippage on stopped trades</td></tr>
+<tr><td>Armored book</td><td>The 986-trade v2 selection with the 1% disaster stop applied (worst trade −1.20%)</td></tr>
+<tr><td>Day-block bootstrap</td><td>Monte Carlo resampling of whole trading days (preserves intra-day correlation)</td></tr>
+<tr><td>Descriptive vs tradeable regime</td><td>Same-month info (explains, may leak) vs prior-month info (knowable at trade time)</td></tr>
+</table>
+
+<!-- ================================================================ A3 -->
+<h2 id="a3"><span class="no">C</span>Appendix C — Constants Card (print this)</h2>
+<pre>
+TIME      OR window 9:15–9:30 (mods 555–569) · confirm 9:30–9:45 (570–584) · outcome 9:45–15:10 (585–910)
+          IST from epoch: mod = (epoch_min % 1440 + 330) % 1440 · day = (epoch_min + 330) // 1440
+
+SELECTION label y_move = next-day TR% ≥ 80th pct of day (QUINTILE 0.80) · TOP_N 10 · SEED 42
+          model HistGradientBoosting(max_iter 250, lr 0.06, depth 4, min_leaf 60, l2 1.0)
+          walk-forward: first 3 months train-only, then monthly rolling OOS
+
+DIRECTION basis_z = (basis_pct − prior20d mean)/prior20d std · discount ≤ −1.5 (bear lean) · premium &gt; +1.5
+
+KAVACH    THRESHOLD 3 (filter a side only if &gt;3 confirmed) · TOPN 2 · rank by range20 ascending
+          SL_PCT 0.01 hard from 9:45 entry · SL_SLIP 0.0005 · COST 0.0015 round trip
+          realized stop loss ≈ −1.20% · worst armored day ≈ −4.80%
+
+SIZING    notional = R × C / 0.012 · R = 1% recommended · 4× leverage cap · exit 15:10 manual
+DATA      NSE bhavcopy (UA header!) · Upstox v3 5-min (no auth, 1 month/request, governor 5/s 280/min 1800/30min)
+          raw → /tmp only · candles store: paise ints, epoch_min, dedupe on merge · space cap 128 MB
+</pre>
+
+<hr class="divider">
+<p class="small center">KAVACH-945 · Version 2.1 · Compiled 2026-09-10 from the six-stage research record.<br>
+Engine workspace: <code>engine/</code> (12 modules, §11.1) · Backtest trade log: <code>engine/output/v2_book_trades.csv.gz</code> · Stage reports: <code>engine/output/*.md</code><br>
+<i>Select tonight. Confirm at 9:45. Armor every trade. Home by 15:10.</i></p>
+
+</div>
+</body>
+</html>
