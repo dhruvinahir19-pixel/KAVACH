@@ -185,21 +185,58 @@ def confirm_book(picks):
     return pd.concat(keep).reset_index(drop=True)
 
 
+def _bold(s: str) -> str:
+    """Unicode mathematical bold — Telegram plain text renders it as bold."""
+    out = []
+    for c in s:
+        if "A" <= c <= "Z":
+            out.append(chr(ord(c) - 0x41 + 0x1D5D4))
+        elif "a" <= c <= "z":
+            out.append(chr(ord(c) - 0x61 + 0x1D5EE))
+        elif "0" <= c <= "9":
+            out.append(chr(ord(c) - 0x30 + 0x1D7EC))
+        else:
+            out.append(c)
+    return "".join(out)
+
+
 def format_message(T, book, version, excluded, capped):
-    lines = [f"KAVACH-945 Morning — {T} (model {version})"]
+    d = dt.date.fromisoformat(T)
+    wd = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+          "Saturday", "Sunday"][d.weekday()]
+    lines = [
+        f"🌅 {_bold('KAVACH-945 · MORNING SIGNAL')}",
+        f"📅 {wd}, {d.strftime('%d %b %Y')} · ⏰ 09:46 IST",
+        "",
+    ]
     if not len(book):
-        lines.append("NO CONFIRMATION — stay flat.")
+        lines += ["😴 " + _bold("NO TRADE TODAY"),
+                  "",
+                  "None of the 10 watchlist stocks broke their",
+                  "opening range by 09:45.",
+                  "",
+                  "Staying flat is a position. ✅"]
+        if excluded:
+            lines += ["", f"⚠️ No live data: {', '.join(excluded)}"]
+        return "\n".join(lines)
     for i, r in enumerate(book.itertuples(), 1):
-        side = "LONG " if r.side == 1 else "SHORT"
+        sideh = "🟢 LONG" if r.side == 1 else "🔴 SHORT"
         stop = r.c945 * (1 - SL_PCT) if r.side == 1 else r.c945 * (1 + SL_PCT)
-        lines.append(f"{i}. {side} {r.symbol} @ {r.c945:.2f} | SL {stop:.2f} "
-                     f"| OR15 {r.or15_l:.2f}-{r.or15_h:.2f} "
-                     f"| basis {'▲' if r.prior == 1 else '▼' if r.prior == -1 else '—'}")
+        pct = "−1.0%" if r.side == 1 else "+1.0%"
+        lean = "▲" if r.prior == 1 else "▼" if r.prior == -1 else "—"
+        lines += [
+            f"{sideh} · {_bold(r.symbol)}",
+            f"   💰 Entry {r.c945:.2f}",
+            f"   🛑 Stop {stop:.2f} ({pct})",
+            f"   📐 OR15 {r.or15_l:.2f}–{r.or15_h:.2f} · basis {lean}",
+            "",
+        ]
     if capped:
-        lines.append(f"(cap: {capped})")
+        lines += [f"🎯 Cap: {capped}", ""]
     if excluded:
-        lines.append(f"no-data: {', '.join(excluded)}")
-    lines.append("enter by ~09:47 · SL is a disaster-stop, not a target")
+        lines += [f"⚠️ No live data: {', '.join(excluded)}", ""]
+    lines += ["⏱️ Enter by 09:47",
+              "🛑 Stop is a disaster brake — not a target"]
     return "\n".join(lines)
 
 

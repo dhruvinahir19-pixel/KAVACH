@@ -139,7 +139,7 @@ def test_full_path_on_fake_date():
                               vix_fn=lambda a, b: vdf)
     assert res.startswith("done:"), f"full path failed: {res}"
     assert not alerts
-    assert sent and "KAVACH-945 Evening Watchlist" in sent[0]
+    assert sent and "🌙" in sent[0] and "1️⃣ IDEA" in sent[0]
 
     conn = neon_store.connect()
     n = conn.execute("SELECT count(*) FROM eod_daily WHERE date=%s", (FAKE_MON,)).fetchone()[0]

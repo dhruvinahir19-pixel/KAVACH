@@ -29,4 +29,5 @@ def send(text: str, token: str, chat_id: str) -> bool:
 
 
 def alert(text: str, token: str, chat_id: str, severity: str = "ALERT") -> bool:
-    return send(f"[{severity}] KAVACH: {text}", token, chat_id)
+    icon = {"ERROR": "🚨", "ALERT": "⚠️", "INFO": "ℹ️"}.get(severity, "⚠️")
+    return send(f"{icon} KAVACH {severity}: {text}", token, chat_id)

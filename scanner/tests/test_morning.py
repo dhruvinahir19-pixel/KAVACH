@@ -75,14 +75,15 @@ def test_no_confirmation_flat():
     book = confirm_book(inside)
     assert not len(book)
     msg = format_message("2026-09-11", book, "v1", [], None)
-    assert "NO CONFIRMATION" in msg and "stay flat" in msg
+    assert "😴" in msg and "Staying flat is a position. ✅" in msg
 
 
 def test_message_has_entry_and_stop():
     book = confirm_book(_picks([("A", 110, 100, 10, 9, 10.5)]))
     msg = format_message("2026-09-11", book, "v1", ["ZZZ"], "4 broke OR15 up -> kept 2 calmest")
-    assert "LONG  A @ 10.50" in msg and f"SL {10.5 * 0.99:.2f}" in msg
-    assert "no-data: ZZZ" in msg and "cap" in msg
+    assert "🟢 LONG ·" in msg and f"💰 Entry {10.5:.2f}" in msg
+    assert f"🛑 Stop {10.5 * 0.99:.2f}" in msg          # 10.5 * 0.99
+    assert "No live data: ZZZ" in msg and "Cap:" in msg
 
 
 # ---------------------------------------------------------------- job gates
@@ -132,7 +133,8 @@ class TestJobGates:
         _freeze(2026, 9, 10, 9, 46)
         res = run_morning(_ctx(sent, alerts), fetch_fn=lambda k: bars)
         assert res.startswith(("done:", "flat:"))
-        assert sent and "KAVACH-945 Morning — 2026-09-10" in sent[0]
+        assert sent and "🌅" in sent[0] and "Thursday, 10 Sep 2026" in sent[0]
+        assert "💰 Entry" in sent[0] and "🛑 Stop" in sent[0]
         if "done" in res:
             conn = neon_store.connect()
             rows = conn.execute("SELECT count(*) FROM signals WHERE dkey='2026-09-10'").fetchone()[0]
@@ -234,7 +236,7 @@ class TestDataFailureAbort:
 
         res = run_morning(_ctx(sent, alerts), fetch_fn=flaky)
         assert res.startswith("done:1")
-        assert "no-data:" in sent[0]
+        assert "No live data" in sent[0]
         conn = neon_store.connect()
         conn.execute("DELETE FROM signals WHERE dkey='2026-09-10'")
         conn.close()

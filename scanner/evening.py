@@ -228,22 +228,53 @@ def evening_analytics(conn, cache, model, version, target_date=None):
     return T, top, nan_syms
 
 
+def _bold(s: str) -> str:
+    """Unicode mathematical bold — Telegram plain text renders it as bold."""
+    out = []
+    for c in s:
+        if "A" <= c <= "Z":
+            out.append(chr(ord(c) - 0x41 + 0x1D5D4))
+        elif "a" <= c <= "z":
+            out.append(chr(ord(c) - 0x61 + 0x1D5EE))
+        elif "0" <= c <= "9":
+            out.append(chr(ord(c) - 0x30 + 0x1D7EC))
+        else:
+            out.append(c)
+    return "".join(out)
+
+
+_KEYCAPS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+
+
 def format_message(T, top, version, notes, nan_syms=()):
     lean = {-1: "▼", 0: "—", 1: "▲"}
-    lines = [f"KAVACH-945 Evening Watchlist — for session after {T.date()}",
-             f"model {version} · {len(top)} picks · scored on {T.date()} close", ""]
+    wd = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+          "Saturday", "Sunday"][T.weekday()]
+    lines = [
+        f"🌙 {_bold('KAVACH-945 · NIGHTLY WATCHLIST')}",
+        f"📅 {wd}, {T.strftime('%d %b %Y')}",
+        f"🤖 Model {version} · 🎯 {_bold('10 picks for tomorrow')}",
+        "",
+    ]
     for i, r in enumerate(top.itertuples(), 1):
-        bz = f"{r.basis_z:+.1f}" if r.basis_z == r.basis_z else "n/a"
-        lines.append(f"{i:>2}. {r.symbol:<12} prob {r.prob*100:5.1f}%  "
-                     f"basis {lean[int(r.prior)]} {bz:>5}  range20 "
-                     f"{r.range20*100 if r.range20 == r.range20 else float('nan'):.1f}%")
+        key = _KEYCAPS[i - 1] if i <= len(_KEYCAPS) else f"{i}."
+        bz = f" {r.basis_z:+.1f}" if r.basis_z == r.basis_z else ""
+        band = (f" · 📏 {r.prior20l:.1f}–{r.prior20h:.1f}"
+                if (r.prior20l == r.prior20l and r.prior20h == r.prior20h) else "")
+        lines.append(f"{key} {r.symbol} {lean[int(r.prior)]}{bz} · "
+                     f"{r.prob*100:.1f}%{band}")
     if notes:
-        lines += ["", "Universe: " + ", ".join(notes[:8])
-                  + (" …" if len(notes) > 8 else "")]
+        lines += ["", "🌱 Universe: " + " · ".join(notes[:6])
+                  + (" …" if len(notes) > 6 else "")]
     if nan_syms:
-        lines += [f"partial-window picks (thin history): {', '.join(nan_syms)}"]
-    lines += ["", "Confirmation at 9:45 tomorrow: LONG > OR-high / SHORT < OR-low. "
-              "No breakout, no trade."]
+        lines += [f"⚠️ Thin history: {', '.join(nan_syms)}"]
+    lines += [
+        "",
+        "⏰ Tomorrow 09:46 — final entries arrive here",
+        "   🟢 LONG if price breaks above opening-range high",
+        "   🔴 SHORT if price breaks below opening-range low",
+        "   ✋ No breakout → no trade",
+    ]
     return "\n".join(lines)
 
 
