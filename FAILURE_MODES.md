@@ -38,10 +38,28 @@ Legend: **P**=prevention (designed out) · **D**=detection (alerts/tests catch i
 | P0-04 | Transient /tmp dependency mistaken for persistent | **D:** documented — /tmp is wiped between sessions (observed); state lives in workspace/Neon only |
 | P0-05 | `import config` creates EMPTY `engine/data/` and `engine/output/` dirs → a subsequent `cp -r <data> engine/data` NESTS the copy as `engine/data/data/` → jobs silently see zero data (**caught live by the P0 gate: "No objects to concatenate"**) | **P:** when `engine/data` already exists, copy CONTENTS: `cp -r <src>/* engine/data/`. **D:** verify_engine.py fails loudly on missing data; job boot self-check asserts non-empty stores |
 
-## Phase P1 — shared core & state layer (to be extended at pre-phase discussion)
+## Phase P1 — shared core & state layer (COMPLETE — 43/43 gate green)
 
-Placeholder — filled during P1 error-hunt: Neon cold start ~1s, connection pooling, partial
-writes (transactions), kill-mid-job recovery, Telegram edge cases, mock-based unit tests.
+Built: `scanner/kcore/` (clock, config, neon_store, upstox_client, nse_client, telegram,
+jobs, app) + `scanner/tests/` (unit mocks + live-Neon suite). Verified live on the real
+pooler endpoint. Failures found and designed out during P1:
+
+| ID | Failure mode | P / D |
+|----|--------------|-------|
+| P1-01 | Neon pooler rejects libpq startup `options` (statement_timeout) — connect fails outright | **P:** no startup options ever; timeouts via `SET LOCAL` inside transactions only. **D:** caught by live probe before any code was written |
+| P1-02 | psycopg3 default autocommit=False + any execute leaves INTRANS; flipping autocommit then raises | **P:** connect(autocommit=True) everywhere; atomic writes via `with conn.transaction():`. **D:** probe + live atomicity test (mid-tx crash leaves zero partial rows) |
+| P1-03 | Pooler (PgBouncer txn mode) breaks named prepared statements — works in dev, dies in prod | **P:** `prepare_threshold=None` on every connect. **D:** documented + enforced in neon_store.connect (single connection factory) |
+| P1-04 | IPv6 AAAA attempts fail (unreachable) in some datacenters before IPv4 fallback — noisy but harmless | **D:** observed in sandbox; recognized as noise, not an outage signal |
+| P1-05 | Fresh database has no schema → first job's claim hits UndefinedTable | **P:** `ensure()` (idempotent DDL) at app boot (best-effort) AND at every job start. **D:** caught by live test suite on the virgin DB |
+| P1-06 | Permanent 4xx (400/404) retried pointlessly, wasting the morning window | **P:** fail-fast `raise_for_status()` for non-transient 4xx; backoff only for 429/5xx/network. **D:** unit test asserts call counts |
+| P1-07 | SQL precedence trap in job-reclaim WHERE (AND binds tighter than OR — reclaim could touch OTHER jobs' rows) | **P:** parenthesized compound predicates. **D:** caught in self-review before ship; live tests assert reclaim scope |
+| P1-08 | Job killed mid-run stays 'running' forever, blocking all future runs | **P:** heartbeats every 10s; stale-running (>15 min) is reclaimable via conditional UPDATE..RETURNING (atomic arbiter). **D:** live test simulates stale + reclaim |
+| P1-09 | Duplicate/concurrent triggers double-execute | **P:** INSERT..ON CONFLICT DO NOTHING + conditional UPDATE..RETURNING as the only arbiters. **D:** live 6-thread concurrent-claim test — exactly one winner |
+
+Gate (2026-09-10): 43/43 passed — unit (clock, config, telegram, upstox, jobs, static
+hygiene) + live-Neon (schema idempotency, kv, claims, concurrency, retries-to-max, stale
+reclaim, tx atomicity, full run_job lifecycle, app end-to-end incl. duplicate-trigger
+skip). Production schema now live in the Neon project (9 tables).
 
 ## Phase P2 — evening pipeline (preview; finalized at pre-phase discussion)
 Universe drift (F-15/F-16), bhavcopy retry ladder, holiday table, symbol renames (ISIN

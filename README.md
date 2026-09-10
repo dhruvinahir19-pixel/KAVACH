@@ -62,6 +62,14 @@ python3 scripts/verify_engine.py
 # PASS trades: 986 | mornings: 346 | stopped: 453 | worst day −4.80% | worst trade −1.20%
 ```
 
+## Scanner tests (P1 gate)
+
+```bash
+cd scanner
+NEON_DATABASE_URL="<your-neon-url>" python3 -m pytest tests/ -q
+# 43 passed — includes live-Neon tests (skipped automatically if the URL is not set)
+```
+
 ## Documentation
 
 - **`docs/KAVACH-945_report.html`** — the master report: full system spec, every formula and constant, stage-by-stage evidence, audits, rebuild guide, execution playbook. If everything else is lost, rebuild from this file.
@@ -74,7 +82,7 @@ python3 scripts/verify_engine.py
 | Phase | Scope | Status |
 |---|---|---|
 | P0 | Repo & foundation, verification gate | ✅ |
-| P1 | Shared core & state layer (Neon, Telegram, clients, job runner) | ⬜ |
+| P1 | Shared core & state layer (Neon, Telegram, clients, job runner) | ✅ 43/43 gate |
 | P2 | Evening pipeline (harvest → features → score → watchlist message) + universe maintenance (daily F&O diff; monthly 1st refresh: isin_map, history backfill, report) | ⬜ |
 | P3 | Morning engine (9:45 signal with entries + stops) | ⬜ |
 | P4 | Deployment (Render Docker, pingers, watchdogs) | ⬜ |
