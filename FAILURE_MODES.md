@@ -34,6 +34,7 @@ Legend: **P**=prevention (designed out) · **D**=detection (alerts/tests catch i
 | P0-02 | Secret committed | **P/D:** pre-push grep scan for ghp_/token patterns |
 | P0-03 | Repo code drifts from workspace engine (silent divergence) | **D:** verify_engine.py reproduction gate — fresh clone must reproduce 986 trades / 346 mornings / 453 stopped / worst day −4.80% |
 | P0-04 | Transient /tmp dependency mistaken for persistent | **D:** documented — /tmp is wiped between sessions (observed); state lives in workspace/Neon only |
+| P0-05 | `import config` creates EMPTY `engine/data/` and `engine/output/` dirs → a subsequent `cp -r <data> engine/data` NESTS the copy as `engine/data/data/` → jobs silently see zero data (**caught live by the P0 gate: "No objects to concatenate"**) | **P:** when `engine/data` already exists, copy CONTENTS: `cp -r <src>/* engine/data/`. **D:** verify_engine.py fails loudly on missing data; job boot self-check asserts non-empty stores |
 
 ## Phase P1 — shared core & state layer (to be extended at pre-phase discussion)
 

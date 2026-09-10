@@ -8,6 +8,10 @@ reproduce the locked Stage-5/6 backtest numbers EXACTLY. Any mismatch means the 
 data pipeline drifted. Exits non-zero on failure.
 
 Usage: python3 scripts/verify_engine.py
+
+DATA TRAP (P0-05): importing any engine module creates an EMPTY engine/data/ directory.
+If it already exists, copy data CONTENTS, not the folder:  cp -r /path/to/data/* engine/data/
+2025 stop-path candles must be at /tmp/c25 (see FAILURE_MODES.md P0-04 for /tmp persistence).
 """
 import os
 import sys
