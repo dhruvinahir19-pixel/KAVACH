@@ -223,6 +223,8 @@ def evening_analytics(conn, cache, model, version, target_date=None):
     top["basis_z"] = top["symbol"].map(ctx["basis_z"])
     top["prior"] = np.select([top["basis_z"] <= -1.5, top["basis_z"] > 1.5], [-1, 1], 0)
     top["range20"] = top["symbol"].map(ctx["range20"])
+    top["prior20h"] = top["symbol"].map(ctx["prior20H"])   # P3 cap tiebreak inputs
+    top["prior20l"] = top["symbol"].map(ctx["prior20L"])
     return T, top, nan_syms
 
 
@@ -319,10 +321,13 @@ def run_evening(ctx, harvest_fn=None, vix_fn=None):
         conn.execute("DELETE FROM watchlists WHERE dkey = %s", (T,))
         for i, r in enumerate(top.itertuples(), 1):
             conn.execute(
-                """INSERT INTO watchlists (dkey, symbol, rank, prob, basis_z, prior, range20)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+                """INSERT INTO watchlists (dkey, symbol, rank, prob, basis_z, prior,
+                                          range20, prior20h, prior20l)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                 (T, r.symbol, i, float(r.prob),
                  float(r.basis_z) if r.basis_z == r.basis_z else None,
-                 int(r.prior), float(r.range20) if r.range20 == r.range20 else None))
+                 int(r.prior), float(r.range20) if r.range20 == r.range20 else None,
+                 float(r.prior20h) if r.prior20h == r.prior20h else None,
+                 float(r.prior20l) if r.prior20l == r.prior20l else None))
     conn.close()
     return f"done:{n} rows, top-1 {top.iloc[0]['symbol']} @{top.iloc[0]['prob']:.1%}"

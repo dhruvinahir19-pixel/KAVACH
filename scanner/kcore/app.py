@@ -35,7 +35,12 @@ def _evening(ctx):
     return run_evening(ctx)
 
 
-JOBS = {"selftest": _selftest, "evening": _evening}   # P3: morning/watchdog/...
+def _morning(ctx):
+    from morning import run_morning
+    return run_morning(ctx)
+
+
+JOBS = {"selftest": _selftest, "evening": _evening, "morning": _morning}
 
 
 def create_app(cfg=None, store=neon_store):

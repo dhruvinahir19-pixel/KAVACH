@@ -71,6 +71,8 @@ CREATE TABLE IF NOT EXISTS watchlists (
   basis_z    REAL,
   prior      INT,
   range20    REAL,
+  prior20h   REAL,                        -- P3: cap tiebreak range20 = (h-l)/c945
+  prior20l   REAL,
   created_at TIMESTAMPTZ DEFAULT now(),
   PRIMARY KEY (dkey, symbol)
 );
@@ -149,6 +151,9 @@ def connect(url: str | None = None, *, connect_timeout: int = 5) -> psycopg.Conn
 def init_schema(conn: psycopg.Connection) -> None:
     """Idempotent DDL. Safe to run at every boot."""
     conn.execute(SCHEMA)
+    # P3 migration: cap tiebreak needs prior20h/l saved by the evening job.
+    conn.execute("ALTER TABLE watchlists ADD COLUMN IF NOT EXISTS prior20h REAL")
+    conn.execute("ALTER TABLE watchlists ADD COLUMN IF NOT EXISTS prior20l REAL")
 
 
 def ensure(conn: psycopg.Connection) -> None:
