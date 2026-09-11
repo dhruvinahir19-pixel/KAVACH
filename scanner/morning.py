@@ -52,6 +52,7 @@ SL_PCT = 0.01                       # disaster stop 1.0% adverse from entry
 FETCH_TRIES, FETCH_SLEEP = 3, 5
 
 UPSTOX = "https://api.upstox.com/v3/historical-candle/intraday"
+UPSTOX_HIST = "https://api.upstox.com/v3/historical-candle"
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
       "Accept": "application/json"}
 
@@ -65,7 +66,8 @@ class StaleDataError(RuntimeError):
 
 def _parse_intraday(json_resp, today_iso):
     """-> [(mod, o, h, l, c, v)], zero-volume bars dropped. Raises
-    StaleDataError when the newest bar is not dated TODAY."""
+    StaleDataError when the newest bar is not dated TODAY. Works for 5-min
+    and 1-min bars alike (metrics are stamp-window based)."""
     out = []
     for c in json_resp.get("data", {}).get("candles", []):
         if len(c) < 6:
@@ -80,23 +82,18 @@ def _parse_intraday(json_resp, today_iso):
         except (ValueError, TypeError):
             continue
     if out and max(b[0] for b in out) != today_iso:
-        raise StaleDataError(f"intraday bars dated {max(b[0] for b in out)}, "
+        raise StaleDataError(f"bars dated {max(b[0] for b in out)}, "
                              f"expected {today_iso} (stale/previous-session)")
     return [b[1:] for b in out]
 
 
-def _intraday_http(instrument_key, token=None, today_iso=None):
-    """One HTTP GET (public, or Bearer-authenticated when token given)."""
-    headers = dict(UA)
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
+def _http_json(url, headers):
+    """GET with bounded retries on 5xx/network errors."""
     for attempt in range(FETCH_TRIES):
         try:
-            r = requests.get(f"{UPSTOX}/{instrument_key}/minutes/5",
-                             headers=headers, timeout=15)
+            r = requests.get(url, headers=headers, timeout=15)
             if r.status_code == 200:
-                return _parse_intraday(r.json(),
-                                       today_iso or clock.today_key())
+                return r.json()
             if r.status_code in (500, 502, 503, 504):
                 time.sleep(FETCH_SLEEP * (attempt + 1))
                 continue
@@ -106,6 +103,31 @@ def _intraday_http(instrument_key, token=None, today_iso=None):
                 raise RuntimeError(f"upstox unreachable: {e}") from e
             time.sleep(FETCH_SLEEP)
     raise RuntimeError("upstox failed after retries")
+
+
+def _sources(instrument_key, today_iso, token=None):
+    """Ordered data sources (P4-06, all verified live 2026-09-10 ~23:25 IST):
+    1. public v3 intraday 5m        — built for current day; OBSERVED to blank
+                                      late at night (empty for all symbols at
+                                      23:25 while working at 23:05) — in-market
+                                      behavior unknown
+    2. public v3 historical to=today — serves same-day bars post-close
+    3. AUTH v3 historical to=today  — same, with the Analytics token
+    4. AUTH v2 intraday 1-minute    — deprecated endpoint, empty post-close,
+                                      kept as an in-market possibility
+    NOTE: auth Bearer on the V3 INTRADAY endpoint returns 200-EMPTY (the token
+    breaks it) — deliberately NOT in the chain."""
+    frm = (dt.date.fromisoformat(today_iso) - dt.timedelta(days=5)).isoformat()
+    hist = f"{UPSTOX_HIST}/{instrument_key}/minutes/5/{today_iso}/{frm}"
+    yield "public-intraday", f"{UPSTOX}/{instrument_key}/minutes/5", dict(UA)
+    yield "public-historical-today", hist, dict(UA)
+    tok = token or load_token()
+    if tok:
+        yield "auth-historical-today", hist, {**UA, "Authorization": f"Bearer {tok}"}
+        yield ("auth-v2-intraday-1min",
+               f"https://api.upstox.com/v2/historical-candle/intraday/"
+               f"{instrument_key}/1minute",
+               {**UA, "Authorization": f"Bearer {tok}"})
 
 
 def load_token():
@@ -122,22 +144,21 @@ def load_token():
 
 
 def fetch_intraday_bars(instrument_key, token=None):
-    """PUBLIC call first (verified working after close 2026-09-10); if it
-    fails during live market (user reports it may not serve live data
-    without auth), fall back to the AUTHENTICATED call when a token is
-    configured. Both paths validate bars are from TODAY's session."""
-    last = None
-    try:
-        return _intraday_http(instrument_key)
-    except Exception as e:                               # noqa: BLE001
-        last = e
-        tok = token or load_token()
-        if not tok:
-            raise
-    try:
-        return _intraday_http(instrument_key, tok)
-    except Exception as e2:                              # noqa: BLE001
-        raise RuntimeError(f"public ({last}) | auth ({e2})") from e2
+    """Layered source chain: first source returning TODAY-dated, non-empty
+    bars wins. All sources validate session-date; a source that returns empty
+    or stale data falls through to the next. Raises with every source's
+    outcome if all fail."""
+    today = clock.today_key()
+    errs = []
+    for label, url, headers in _sources(instrument_key, today, token=token):
+        try:
+            bars = _parse_intraday(_http_json(url, headers), today)
+            if bars:
+                return bars
+            errs.append(f"{label}: empty")
+        except Exception as e:                       # noqa: BLE001
+            errs.append(f"{label}: {e}")
+    raise RuntimeError("all data sources failed — " + " | ".join(errs))
 
 
 # ------------------------------------------------------------------ bar math

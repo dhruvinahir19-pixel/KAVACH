@@ -114,6 +114,29 @@ All preview items resolved plus the following observed/designed failure modes:
 
 ## Phase P3 — morning engine (placeholder)
 
+## Phase P3.5 — live-data source map (measured 2026-09-10 night, all live probes)
+- **P4-06 Upstox source behaviors (measured)**:
+  - public v3 intraday 5m: works after close (75 bars, == NSE closes) BUT goes
+    EMPTY for all symbols late night (~23:20 IST) — nightly reset; in-market
+    behavior UNKNOWN until first live morning.
+  - auth (Bearer) v3 intraday: 200-EMPTY — the Analytics token BREAKS this
+    endpoint. Never use auth on v3 intraday.
+  - v2 intraday (auth): also 200-EMPTY post-close (kept in chain as in-market
+    possibility only).
+  - v3 historical to=today: serves SAME-DAY bars post-close, BOTH public and
+    authenticated (verified 10/10 watchlist symbols; data identical to intraday
+    where both exist).
+  - Chain order in morning.py: public-intraday -> public-historical-today ->
+    auth-historical-today (token) -> auth-v2-intraday-1min. First source with
+    TODAY-dated non-empty bars wins; stale/empty falls through; all-fail =
+    loud abort (P3-06). Live-verified fall-through during the intraday
+    endpoint's dark window (10/10 via public-historical-today).
+  - After midnight the whole chain correctly reports no data for the new day
+    (market not open) — expected pre-market state, not an outage.
+- **Token lifecycle**: Analytics token issued 2026-05-28, expires 2027-05-29;
+  stored at ~/.upstox_token mode 600 (sandbox) / UPSTOX_ACCESS_TOKEN (Render);
+  regenerated token invalidates the old one instantly.
+
 ## Phase P4 — deployment & hardening (LIVE — kavach-scanner.onrender.com)
 - **P4-01 skipped-is-terminal (CRITICAL, found pre-live)**: the job runner
   treated state='skipped' as final for the day. The 09:44 wake ping's

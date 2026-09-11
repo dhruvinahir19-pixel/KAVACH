@@ -173,24 +173,48 @@ def test_parse_today_ok_and_zero_volume_dropped():
     assert bars == [(555, 10.0, 11.0, 9.5, 10.5, 100), (580, 13.0, 15.0, 13.0, 14.5, 100)]
 
 
-def test_auth_fallback_used_when_public_fails():
-    from morning import fetch_intraday_bars
-    calls = []
-
-    def fake_http(key, token=None):
-        calls.append(token)
-        if token is None:
-            raise RuntimeError("401 unauthorized")       # public fails
-        return [(555, 10, 11, 9.5, 10.5, 100)]           # auth works
-
+def test_source_chain_falls_through():
+    """Public sources empty/stale -> auth historical serves today's bars."""
+    import datetime as _dt
     import morning as M
-    orig = M._intraday_http
-    M._intraday_http = fake_http
+    from kcore import clock
+
+    def fake_sources(key, today_iso, token=None):
+        yield "public-intraday", "u1", {}
+        yield "public-historical-today", "u2", {}
+        yield "auth-historical-today", "u3", {}
+
+    def fake_http(url, headers):
+        if url == "u1":
+            return {"data": {"candles": []}}                    # empty (nightly blank)
+        if url == "u2":
+            return {"data": {"candles": [                       # yesterday = stale
+                ["2026-09-10T09:15:00+05:30", 10, 11, 9.5, 10.5, 100]]}}
+        return {"data": {"candles": [                           # today = good
+            ["2026-09-11T09:15:00+05:30", 10, 11, 9.5, 10.5, 100],
+            ["2026-09-11T09:40:00+05:30", 13, 15, 13, 14.5, 100]]}}
+
+    saved_src, saved_http, saved_now = M._sources, M._http_json, clock._now
+    M._sources, M._http_json = fake_sources, fake_http
+    clock._now = lambda: _dt.datetime(2026, 9, 11, 9, 46, tzinfo=clock.IST)
     try:
-        bars = fetch_intraday_bars("NSE_EQ|INE669E01016", token="TESTTOKEN")
-        assert bars and calls == [None, "TESTTOKEN"]     # tried public, then auth
+        bars = M.fetch_intraday_bars("NSE_EQ|INE669E01016")
+        assert bars == [(555, 10.0, 11.0, 9.5, 10.5, 100),
+                        (580, 13.0, 15.0, 13.0, 14.5, 100)]
     finally:
-        M._intraday_http = orig
+        M._sources, M._http_json, clock._now = saved_src, saved_http, saved_now
+
+
+def test_all_sources_failed_raises_with_detail():
+    import morning as M
+    saved_src, saved_http = M._sources, M._http_json
+    M._sources = lambda key, today_iso, token=None: iter([("s1", "u1", {})])
+    M._http_json = lambda u, h: {"data": {"candles": []}}
+    try:
+        with pytest.raises(RuntimeError, match="empty"):
+            M.fetch_intraday_bars("NSE_EQ|INE669E01016")
+    finally:
+        M._sources, M._http_json = saved_src, saved_http
 
 
 @LIVE
