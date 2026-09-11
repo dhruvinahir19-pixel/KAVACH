@@ -78,8 +78,9 @@ def test_failure_marks_failed_and_alerts():
 
 
 def test_running_job_blocks_second_trigger():
+    from kcore.clock import today_key
     fs = FakeStore()
-    fs.claim_job(None, "t4", "2026-09-10")       # someone already claimed it
+    fs.claim_job(None, "t4", today_key())        # someone already claimed it
     assert jobs.run_job("t4", lambda ctx: None, store=fs, hb_every=999) == "skip-running"
 
 
@@ -128,9 +129,7 @@ def test_skips_do_not_consume_failure_budget():
 
 # ============================================ watchdog verdict mapping
 def test_watchdog_status():
-    import os, sys
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from kcore.app import watchdog_status
+    from kcore.jobs import watchdog_status
     assert watchdog_status("morning", "done", "done:2 signals")[0]
     assert watchdog_status("morning", "skipped", "skipped:weekend")[0]
     assert watchdog_status("evening", "skipped", "skipped:holiday")[0]

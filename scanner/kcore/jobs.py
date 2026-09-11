@@ -93,3 +93,22 @@ def run_job(name, fn, *, store, url=None, tg=None,
         hb.join(timeout=hb_every + 1)
         conn.close()
     return status
+
+
+def watchdog_status(kind, state, detail):
+    """Map a jobs_log row to (ok, verdict). Pure function (unit-tested).
+    A 'too-early'/'not-posted-yet' skip that was never followed up by the
+    real run is exactly what the watchdog must catch."""
+    if state == "done":
+        return True, f"ok: {kind} done ({detail})"
+    if state == "failed":
+        return False, f"FAILED: {kind} ({detail})"
+    if state == "running":
+        return True, f"ok: {kind} still running"
+    if state is None:
+        return False, f"MISSING: no {kind} job ran today at all"
+    d = (detail or "")
+    if "weekend" in d or "holiday" in d:
+        return True, f"ok: {kind} skipped ({d})"
+    return False, (f"STUCK-SKIPPED: {kind} last state '{d}' — the real run "
+                   f"never happened")

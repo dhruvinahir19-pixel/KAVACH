@@ -13,7 +13,8 @@ COPY scanner ./scanner
 
 WORKDIR /app/scanner
 ENV PYTHONPATH=/app/scanner:/app/engine \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    KAVACH_SCHEDULER=1
 
 # memory guard: gunicorn 1 worker, threaded flask app, ~350MB soft ceiling
 CMD gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4 \

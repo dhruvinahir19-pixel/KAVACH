@@ -16,6 +16,7 @@ import threading
 from flask import Flask, jsonify, request
 
 from . import config, jobs, neon_store, telegram
+from .jobs import watchdog_status
 from .clock import today_key
 
 JOB_NAMES = ("selftest", "evening", "morning", "watchdog", "universe-refresh")
@@ -43,25 +44,6 @@ def _morning(ctx):
 JOBS = {"selftest": _selftest, "evening": _evening, "morning": _morning}
 
 
-def watchdog_status(kind, state, detail):
-    """Map a jobs_log row to (ok, verdict). Pure function (unit-tested).
-    A 'too-early'/'not-posted-yet' skip that was never followed up by the real
-    run is exactly what the watchdog must catch."""
-    if state == "done":
-        return True, f"ok: {kind} done ({detail})"
-    if state == "failed":
-        return False, f"FAILED: {kind} ({detail})"
-    if state == "running":
-        return True, f"ok: {kind} still running"
-    if state is None:
-        return False, f"MISSING: no {kind} job ran today at all"
-    d = (detail or "")
-    if "weekend" in d or "holiday" in d:
-        return True, f"ok: {kind} skipped ({d})"
-    return False, (f"STUCK-SKIPPED: {kind} last state '{d}' — the real run "
-                   f"never happened")
-
-
 def create_app(cfg=None, store=neon_store):
     cfg = cfg or config.load(strict=True)
 
@@ -84,7 +66,7 @@ def create_app(cfg=None, store=neon_store):
 
     @app.get("/version")
     def version():
-        return jsonify(version="2026-09-11.2-c945fix"), 200
+        return jsonify(version="2026-09-11.3-selfsched"), 200
 
     @app.post("/trigger/<job>")
     def trigger(job):
@@ -132,6 +114,25 @@ def create_app(cfg=None, store=neon_store):
                 cfg["TELEGRAM_CHAT_ID"], severity="ERROR")
         return jsonify(ok=ok, kind=kind, state=state, verdict=verdict), \
             (200 if ok else 503)
+
+    # P4-07: in-process scheduler (KAVACH_SCHEDULER=1 in the Docker image).
+    # Fires the daily schedule itself; external triggers stay as backups.
+    if os.environ.get("KAVACH_SCHEDULER") == "1":
+        from . import scheduler
+
+        def _dispatch(name):
+            fn = JOBS.get(name)
+            if fn is None:
+                return
+            threading.Thread(
+                target=jobs.run_job, args=(name, fn),
+                kwargs={"store": store, "url": cfg["NEON_DATABASE_URL"],
+                        "tg": {"token": cfg["TELEGRAM_BOT_TOKEN"],
+                               "chat_id": cfg["TELEGRAM_CHAT_ID"]}},
+                daemon=True).start()
+
+        scheduler.start(cfg, _dispatch)
+        app.logger.info("kavach scheduler started (internal, IST)")
 
     return app
 

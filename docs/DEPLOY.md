@@ -37,7 +37,16 @@ cron-job.org free; UptimeRobot free.)
 
 ---
 
-## Step 2 — Set the timers on cron-job.org
+## Step 2 — Timers: INTERNAL SCHEDULER (primary) + cron-job.org (optional backup)
+
+**Since 2026-09-11 the app fires its own schedule** (09:46 + 09:48 retry,
+20:02 + 20:32 retry, watchdogs 09:52 / 20:40 IST) — an internal loop that
+re-checks every 30s from the database, so restarts/redeploys never lose the
+schedule. UptimeRobot's keep-alive is what makes this possible (a sleeping
+service cannot wake itself). cron-job.org jobs below are now an OPTIONAL
+second wake-up path / safety net — no longer required for the system to run.
+
+To also configure the optional cron-job.org backups:
 
 Create **3 jobs** (all times **IST**, cron-job.org supports per-job timezone:
 set each job's timezone to **Asia/Kolkata**):
