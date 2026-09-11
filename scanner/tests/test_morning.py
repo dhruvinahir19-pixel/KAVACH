@@ -264,3 +264,29 @@ class TestDataFailureAbort:
         conn = neon_store.connect()
         conn.execute("DELETE FROM signals WHERE dkey='2026-09-10'")
         conn.close()
+
+
+# ------------------------------------------- P3-07 regression (caught live)
+def test_metrics_order_independent():
+    """The production API returns bars NEWEST-FIRST. c945 must be the same
+    regardless of bar order (live bug 2026-09-11: cnf[-1] on descending data
+    read the 09:30 close as the 09:45 price -> phantom breakout signal)."""
+    from morning import morning_metrics
+    asc = [(555, 10, 11, 9.5, 10.5, 100), (560, 10.5, 12, 10, 11, 100),
+           (570, 11, 13, 11, 12.5, 100),          # 09:30 close 12.5
+           (575, 12.5, 14, 12, 13, 100),          # 09:35 close 13.0
+           (580, 13, 15, 13, 14.5, 100)]          # 09:40 close 14.5 = c945
+    desc = list(reversed(asc))
+    ma, md = morning_metrics(asc), morning_metrics(desc)
+    assert ma["c945"] == md["c945"] == 14.5, "c945 must be the 09:40-bar close"
+    assert ma["or15_h"] == md["or15_h"] == 12
+    assert ma["or15_l"] == md["or15_l"] == 9.5
+    # and with the descending order, 14.5 > OR-high 12 -> the LONG fires the
+    # SAME way in both orders; the live bug case: latest close INSIDE range
+    inside = [(555, 10, 11, 9.5, 10.5, 100), (560, 10.5, 12, 10, 11, 100),
+              (570, 11, 13, 11, 15.5, 100),       # 09:30 close 15.5 (above!)
+              (575, 12.5, 14, 12, 13, 100),
+              (580, 13, 15, 13, 11.5, 100)]       # 09:40 close 11.5 (inside)
+    for order in (inside, list(reversed(inside))):
+        m = morning_metrics(order)
+        assert m["c945"] == 11.5, "must read the 09:40 close, never the 09:30"

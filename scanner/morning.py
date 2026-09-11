@@ -84,6 +84,7 @@ def _parse_intraday(json_resp, today_iso):
     if out and max(b[0] for b in out) != today_iso:
         raise StaleDataError(f"bars dated {max(b[0] for b in out)}, "
                              f"expected {today_iso} (stale/previous-session)")
+    out.sort(key=lambda b: b[1])               # chronological (API is newest-first)
     return [b[1:] for b in out]
 
 
@@ -165,14 +166,19 @@ def fetch_intraday_bars(instrument_key, token=None):
 def morning_metrics(bars):
     """bars: [(mod, o, h, l, c, v)]. Zero-volume filler bars are dropped HERE
     as defense-in-depth (the fetcher drops them too) — the research morning
-    table was built from a store that never kept them."""
+    table was built from a store that never kept them.
+    ORDER-INDEPENDENT: c945 is the close of the MAX-STAMP confirm bar. The
+    production API returns bars newest-first; list position must never decide
+    which bar is 'the 9:45 price' (P3-07, caught live 2026-09-11: cnf[-1] on
+    descending data read the 09:30 close as c945 -> phantom breakout)."""
     bars = [b for b in bars if b[5] > 0]
     orw = [b for b in bars if OR_LO <= b[0] <= OR_HI]
     cnf = [b for b in bars if CN_LO <= b[0] <= CN_HI]
+    last = max(cnf, key=lambda b: b[0]) if cnf else None
     return {
         "or15_h": max(b[2] for b in orw) if orw else None,
         "or15_l": min(b[3] for b in orw) if orw else None,
-        "c945": cnf[-1][4] if cnf else None,   # last confirm-window close
+        "c945": last[4] if last else None,   # close of the LATEST confirm bar
     }
 
 
