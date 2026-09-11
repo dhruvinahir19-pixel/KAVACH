@@ -62,4 +62,4 @@ def test_alert_prefixes_severity(monkeypatch):
 
     monkeypatch.setattr(telegram.requests, "post", fake_post)
     assert telegram.alert("disk full", "tok", "123", severity="ERROR") is True
-    assert seen["payload"]["text"].startswith("[ERROR] KAVACH: disk full")
+    assert seen["payload"]["text"].startswith("🚨 KAVACH ERROR: disk full")
