@@ -32,7 +32,13 @@ def test_parity_fixture():
     conn.close()
     assert version == FIXTURE["model_version"], f"model changed: {version}"
 
-    cache = EodCache(os.environ["NEON_DATABASE_URL"], sessions=480)
+    # FULL history, then hard truncate at the fixture date. A trailing-N window
+    # (sessions=480) anchors at Neon's max date and slides forward every time a
+    # new session lands — the fixture froze the research window ending
+    # 2026-09-09, so any later date in eod_daily evicts the oldest session and
+    # silently drifts rank features (observed 2026-09-11: 09-10 + a stray
+    # 2099-01-05 test row slid the window and failed parity with 7e-3 drift).
+    cache = EodCache(os.environ["NEON_DATABASE_URL"], sessions=None)
     cache.boot()
     f = cache.frames
     f = {k: v[v["date"] <= FIXTURE["date"]].copy() for k, v in f.items()}
@@ -66,7 +72,7 @@ def test_feature_sample_values():
     conn = neon_store.connect()
     _, _, model = load_model(conn)
     conn.close()
-    cache = EodCache(os.environ["NEON_DATABASE_URL"], sessions=480)
+    cache = EodCache(os.environ["NEON_DATABASE_URL"], sessions=None)
     cache.boot()
     f = {k: v[v["date"] <= FIXTURE["date"]].copy() for k, v in cache.frames.items()}
     panel = build_features(f["cash"], f["fut"], f["opt"], f["part"], f["mkt"], f["vix"])

@@ -134,6 +134,31 @@ All preview items resolved plus the following observed/designed failure modes:
   costs. Verdict: the 09:45 decision point stays (also the 18-month-validated
   fill convention).
 
+## P3-10 — post-deploy full re-verification findings (2026-09-11, tests/infra only)
+- **P3-10a parity "drift" was a sliding test window, NOT bad data (found while
+  re-verifying P3-08)**: test_parity used EodCache(sessions=480), whose window
+  anchors at Neon's MAX date — every new session in eod_daily silently evicts
+  the oldest one. The fixture froze the research window ending 2026-09-09;
+  09-10 landing broke it (7/207 symbols drifted <=7e-3, top-10 IDENTICAL).
+  Proven not-P3-08 (fails identically on the previous commit), proven not-data
+  (research files == Neon == NSE's live archive, zero diffs across all frames).
+  Fix: test loads FULL history (sessions=None) and hard-truncates at the
+  fixture date — deterministic forever. After fix: 2/2 pass, drift 5e-11.
+- **P3-10b live-test pollution is kill-unsafe (production impact)**:
+  test_evening writes a fake day dated 2099-01-05 (210 eod_daily rows + eod_mkt
+  + universe last_seen bumps) and cleaned up ONLY in fixture teardown — a
+  timeout-killed run leaves the rows in production Neon. Observed 2026-09-11:
+  2099 rows slid the cache window (see P3-10a) and inflated universe.last_seen
+  on 209 symbols. Cleaned by hand; universe.last_seen repaired per-symbol
+  (= symbol's true max real date). Fix: _scrub_fake_day() now runs BEFORE each
+  test too (self-healing); verified 81/81 pass + zero 2099 rows after.
+- **P3-10c universe test baked in stale dates**: test_absent_counting expected
+  "absent (1/5)" from hardcoded 2026-09-08 — breaks as soon as later sessions
+  exist in eod_daily (absence counts REAL sessions after last_seen). Fix:
+  anchor to the DB's latest distinct sessions dynamically. Lesson (applies to
+  every live test): NEVER hardcode calendar dates that eod_daily will grow
+  past; derive expectations from the DB's current state.
+
 ## Phase P3.5 — live-data source map (measured 2026-09-10 night, all live probes)
 - **P4-06 Upstox source behaviors (measured)**:
   - public v3 intraday 5m: works after close (75 bars, == NSE closes) BUT goes

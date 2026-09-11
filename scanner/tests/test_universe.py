@@ -55,17 +55,29 @@ def test_new_symbol_added_not_scoreable():
 
 
 def test_absent_counting_and_deactivation():
-    _seed("ZUUT2", True, True, "2026-09-08")       # absent today, 1 session ago
+    # Anchor to the DB's real latest sessions — hardcoded 2026-09-xx dates broke
+    # the moment 2026-09-10 landed in eod_daily (absence counts real sessions
+    # after last_seen, whatever the DB currently holds).
     conn = neon_store.connect()
-    notes = maintain_universe(conn, set(), "2026-09-09")
+    recent = [r[0] for r in conn.execute(
+        "SELECT DISTINCT date FROM eod_daily WHERE date < '2100-01-01' "
+        "ORDER BY date DESC LIMIT 6").fetchall()]
+    conn.close()
+    assert len(recent) == 6, "need >= 6 sessions of eod_daily history"
+    latest, one_back, five_back = recent[0], recent[1], recent[5]
+
+    _seed("ZUUT2", True, True, one_back.isoformat())  # absent today, 1 session ago
+    conn = neon_store.connect()
+    notes = maintain_universe(conn, set(), latest.isoformat())
     row = conn.execute("SELECT active FROM universe WHERE symbol='ZUUT2'").fetchone()
     conn.close()
     assert row == (True,) and any("ZUUT2 absent (1/5)" in n for n in notes)
 
     # now simulate 5+ sessions since last_seen: shift last_seen back
     conn = neon_store.connect()
-    conn.execute("UPDATE universe SET last_seen='2026-08-25' WHERE symbol='ZUUT2'")
-    notes = maintain_universe(conn, set(), "2026-09-09")
+    conn.execute("UPDATE universe SET last_seen=%s WHERE symbol='ZUUT2'",
+                 (five_back.isoformat(),))
+    notes = maintain_universe(conn, set(), latest.isoformat())
     row = conn.execute("SELECT active FROM universe WHERE symbol='ZUUT2'").fetchone()
     conn.close()
     assert row == (False,), "5+ missed sessions must deactivate (P2-05)"

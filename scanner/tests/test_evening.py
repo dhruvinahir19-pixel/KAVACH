@@ -35,20 +35,36 @@ def _freeze(y, m, d, hh=20, mm=5):
     clock._now = lambda: dt.datetime(y, m, d, hh, mm, tzinfo=clock.IST)
 
 
+def _scrub_fake_day():
+    """Remove ALL traces of the far-future fake day — BEFORE each test and
+    again after. Teardown-only cleanup is not kill-safe: a run that dies
+    mid-test (observed 2026-09-11: timeout-killed suite) leaves 2099-01-05
+    rows in eod_daily, which slide the EodCache trailing window and silently
+    drift parity. Universe repair is exact per symbol: last_seen = the
+    symbol's true max real date in eod_daily (a healthy row already equals
+    it, so only polluted rows are touched)."""
+    conn = neon_store.connect()
+    try:
+        conn.execute("DELETE FROM eod_daily WHERE date = %s", (FAKE_MON,))
+        conn.execute("DELETE FROM eod_mkt WHERE date = %s", (FAKE_MON,))
+        conn.execute("DELETE FROM watchlists WHERE dkey = %s", (FAKE_MON.isoformat(),))
+        conn.execute(
+            "UPDATE universe u SET last_seen = s.mx "
+            "FROM (SELECT symbol, max(date) AS mx FROM eod_daily GROUP BY symbol) s "
+            "WHERE u.symbol = s.symbol AND u.last_seen > s.mx")
+    finally:
+        conn.close()
+
+
 @pytest.fixture(autouse=True)
 def _restore():
     import kcore.eod_cache as ec
     ec._cache_singleton = None        # stale process-global cache would mask per-test state
+    _scrub_fake_day()                 # self-heal rows a killed earlier run may have left
     yield
     ec._cache_singleton = None
     clock._now = lambda: dt.datetime.now(clock.IST)
-    conn = neon_store.connect()
-    conn.execute("DELETE FROM eod_daily WHERE date = %s", (FAKE_MON,))
-    conn.execute("DELETE FROM eod_mkt WHERE date = %s", (FAKE_MON,))
-    conn.execute("DELETE FROM watchlists WHERE dkey = %s", (FAKE_MON.isoformat(),))
-    conn.execute("UPDATE universe SET last_seen = (SELECT max(date) FROM eod_daily) "
-                 "WHERE last_seen > (SELECT max(date) FROM eod_daily)")
-    conn.close()
+    _scrub_fake_day()
 
 
 def test_weekend_skip():
