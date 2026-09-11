@@ -88,16 +88,30 @@ def run_watchdog(cfg, kind):
         conn.close()
 
 
+class SchedState:
+    """In-memory observability for the loop (no DB writes — Neon sleeps
+    peacefully between jobs). Exposed via /schedstatus."""
+    started_at = None
+    last_tick = None
+    ticks = 0
+    last_dispatch = None
+
+
 def start(cfg, dispatch):
     """Start the loop thread. dispatch(job_name) must be NON-BLOCKING
     (spawn a thread per job); the loop itself must never be slowed."""
     def loop():
+        SchedState.started_at = clock.now().isoformat()
         while True:
             try:
                 now = clock.now()
+                SchedState.last_tick = now.isoformat()
+                SchedState.ticks += 1
                 for name in due_triggers(now):
+                    SchedState.last_dispatch = f"{now.isoformat()} {name}"
                     dispatch(name)
                 for kind in due_watchdogs(now):
+                    SchedState.last_dispatch = f"{now.isoformat()} watchdog:{kind}"
                     run_watchdog(cfg, kind)
             except Exception:                     # the loop must never die
                 traceback.print_exc()

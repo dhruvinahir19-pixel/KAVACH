@@ -64,9 +64,19 @@ def create_app(cfg=None, store=neon_store):
     def health():
         return "OK", 200
 
+    @app.get("/schedstatus")
+    def schedstatus():
+        from . import scheduler as _s
+        st = _s.SchedState
+        if st.started_at is None:
+            return jsonify(scheduler="not-started", hint="KAVACH_SCHEDULER != 1"), 200
+        return jsonify(scheduler="running", started=st.started_at,
+                       last_tick=st.last_tick, ticks=st.ticks,
+                       last_dispatch=st.last_dispatch), 200
+
     @app.get("/version")
     def version():
-        return jsonify(version="2026-09-11.3-selfsched"), 200
+        return jsonify(version="2026-09-11.4-verify"), 200
 
     @app.post("/trigger/<job>")
     def trigger(job):
