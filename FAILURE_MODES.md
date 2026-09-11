@@ -122,8 +122,16 @@ All preview items resolved plus the following observed/designed failure modes:
   be dropped). 2026 evidence (167 mornings): 312 vs 466 trades, win 51.6% vs
   46.8%, +0.69% vs +0.45%/trade, +216 vs +208pp, worst day -2.40% vs -4.80%.
   August 2026: 40 trades, 52.5% win, +0.43%/trade, worst day -1.20%, Rs 20k
-  -> Rs 22,083 (+10.4%). FULL 18-month revalidation (needs 2025 candles
-  refetch) scheduled before Monday.
+  -> Rs 22,083 (+10.4%). 18-MONTH REVALIDATION DONE (2025-09-11; 2025-04-01
+  -> 2026-09-08, 346 mornings, 2025 5-min candles fetched to /tmp/c25 via
+  `candles.py window`, ALL trades SL-walked, zero flagged):
+    OLD RULE : 986 trades | 2.85/day | win 47.9% | +0.423%/tr | +417pp |
+               worst day -4.80% | Rs 20k -> Rs 10.53L (+5165%) compounded
+    STRICT-2 : 666 trades | 1.92/day | win 49.8% | +0.581%/tr | +387pp |
+               worst day -2.40% | Rs 20k -> Rs 8.09L (+3946%) compounded |
+               17/18 months positive (only 2025-05 -2.5pp)
+  Trade-off confirmed: strict-2 gives up ~7% of total return for HALF the
+  worst day and +37% per trade — exactly the risk-shape the user directed.
 - **P3-09 entry-timing study (why 09:45, not the first breakout candle)**:
   early breaks that FADE back inside by 09:45 (whipsaws): 135 cases in 2026,
   21.5% win, avg -0.38% — the 09:45 wait exists to filter exactly these.
