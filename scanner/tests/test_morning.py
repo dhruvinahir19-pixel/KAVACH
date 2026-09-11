@@ -60,10 +60,10 @@ def test_confirm_and_cap():
     # range20 = (h-l)/c945: C=0.098 A=0.952 B=1.92 D=2.97 -> keep C and A
     book = confirm_book(_picks(rows))
     assert sorted(book["symbol"]) == ["A", "C"]
-    # 3 or fewer -> trade them all
+    # exactly 3 confirmed -> still capped to 2 calmest (P3-08: max 2/day total)
     rows3 = rows[:3]
     book3 = confirm_book(_picks(rows3))
-    assert len(book3) == 3
+    assert sorted(book3["symbol"]) == ["A", "C"]
     # short side: c945 < or15_l
     shorts = _picks([("S", 110, 100, 12, 11, 10.9), ("T", 105, 100, 12, 11, 10.8)])
     book_s = confirm_book(shorts)
@@ -290,3 +290,14 @@ def test_metrics_order_independent():
     for order in (inside, list(reversed(inside))):
         m = morning_metrics(order)
         assert m["c945"] == 11.5, "must read the 09:40 close, never the 09:30"
+
+
+def test_strict2_cap_across_sides():
+    """P3-08: the cap is TOTAL per day — 2 longs + 2 shorts -> only the 2
+    calmest overall trade (a whole side can be dropped)."""
+    rows = [("L1", 110, 100, 10, 9, 10.5), ("L2", 120, 100, 10, 9, 10.4),
+            ("S1", 105, 100, 12, 11, 10.9), ("S2", 103, 100, 12, 11, 10.8)]
+    book = confirm_book(_picks(rows))
+    assert len(book) == 2
+    # range20: S2=0.028 S1=0.046 L1=0.952 L2=1.923 -> keep S2 and S1
+    assert sorted(book["symbol"]) == ["S1", "S2"]

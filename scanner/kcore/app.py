@@ -76,7 +76,7 @@ def create_app(cfg=None, store=neon_store):
 
     @app.get("/version")
     def version():
-        return jsonify(version="2026-09-11.4-verify"), 200
+        return jsonify(version="2026-09-11.5-strict2"), 200
 
     @app.post("/trigger/<job>")
     def trigger(job):

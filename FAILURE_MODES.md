@@ -114,6 +114,26 @@ All preview items resolved plus the following observed/designed failure modes:
 
 ## Phase P3 — morning engine (placeholder)
 
+## P3-07b / P3-08 — rule change + timing study (2026-09-11, user-directed)
+- **P3-08 STRICT MAX 2 TRADES/DAY (production rule, user directive)**:
+  previously cap = 2 per SIDE only when >3 confirmed on a side (research
+  Stage-5 wording) -> up to 6/day. User wants hard max 2/day total; when more
+  confirm, keep the 2 CALMEST by range20 regardless of side (a whole side can
+  be dropped). 2026 evidence (167 mornings): 312 vs 466 trades, win 51.6% vs
+  46.8%, +0.69% vs +0.45%/trade, +216 vs +208pp, worst day -2.40% vs -4.80%.
+  August 2026: 40 trades, 52.5% win, +0.43%/trade, worst day -1.20%, Rs 20k
+  -> Rs 22,083 (+10.4%). FULL 18-month revalidation (needs 2025 candles
+  refetch) scheduled before Monday.
+- **P3-09 entry-timing study (why 09:45, not the first breakout candle)**:
+  early breaks that FADE back inside by 09:45 (whipsaws): 135 cases in 2026,
+  21.5% win, avg -0.38% — the 09:45 wait exists to filter exactly these.
+  Entering earlier on the trades that DO hold shows +0.96%/trade, but that
+  number is hindsight (unknowable at entry). The implementable comparison:
+  enter-at-first-break (all early breaks incl. whipsaws) = 45.6% win,
+  +0.56%/trade vs the 09:45 rule = 51.0% win, +0.70%/trade on identical
+  costs. Verdict: the 09:45 decision point stays (also the 18-month-validated
+  fill convention).
+
 ## Phase P3.5 — live-data source map (measured 2026-09-10 night, all live probes)
 - **P4-06 Upstox source behaviors (measured)**:
   - public v3 intraday 5m: works after close (75 bars, == NSE closes) BUT goes

@@ -10,8 +10,10 @@ engine/protocol_v2.py — the 986-trade / worst-day -4.80% book):
                 (the bar that completes at 09:45:00)
   zero-volume bars are DROPPED (research candle store never kept them)
   LONG        = c945 > or15_h     SHORT = c945 < or15_l
-  cap/side    = >3 confirmed -> keep the 2 CALMEST by
+  cap/day     = more than 2 confirmed in total -> keep the 2 CALMEST by
                 range20 = (prior20h - prior20l) / c945   [lowest first]
+                (P3-08: user directive 2026-09-11 — hard max 2 trades/day;
+                previously cap was 2 per SIDE when >3 confirmed on a side)
   no confirm  -> FLAT morning (no forced trades — research rule 3)
   entry       = c945 ; disaster stop = 1.0% adverse
 
@@ -46,8 +48,7 @@ WIN_LO, WIN_HI = (9, 40), (9, 49)   # job window 09:40..09:49:59 IST
 OR_LO, OR_HI = 555, 569             # bar-stamp minute-of-day (IST): 09:15..09:29
 CN_LO, CN_HI = 570, 584             # 09:30..09:44; the 09:40 bar completes 09:45:00
 C945_READY = (9, 45, 40)            # wall time after which the 09:40 bar is final
-THRESHOLD = 3                       # filter a side only when candidates exceed this
-TOPN = 2                            # how many to keep when filtering
+MAX_DAY_TRADES = 2                  # P3-08: hard cap on TOTAL trades per day
 SL_PCT = 0.01                       # disaster stop 1.0% adverse from entry
 FETCH_TRIES, FETCH_SLEEP = 3, 5
 
@@ -184,7 +185,9 @@ def morning_metrics(bars):
 
 def confirm_book(picks):
     """picks: DataFrame(symbol, prob, prior, prior20h, prior20l, or15_h,
-    or15_l, c945). Confirm + cap — mirrors protocol_v2.select_book exactly."""
+    or15_l, c945). Confirm + cap. P3-08 (user directive 2026-09-11): a day
+    trades AT MOST 2 stocks total — when more confirm, keep the 2 CALMEST
+    (lowest range20 = (prior20h - prior20l) / c945), regardless of side."""
     rows = []
     for r in picks.itertuples():
         if r.or15_h is None or r.or15_l is None or r.c945 is None:
@@ -203,13 +206,9 @@ def confirm_book(picks):
     if not len(c):
         return c
     c["range20_m"] = (c["prior20h"] - c["prior20l"]) / c["c945"]
-    keep = []
-    for _, g in c.groupby("side"):
-        if len(g) <= THRESHOLD:
-            keep.append(g)
-        else:                                 # calmest = lowest range20 first
-            keep.append(g.sort_values("range20_m", kind="stable").head(TOPN))
-    return pd.concat(keep).reset_index(drop=True)
+    if len(c) > MAX_DAY_TRADES:               # calmest = lowest range20 first
+        c = c.sort_values("range20_m", kind="stable").head(MAX_DAY_TRADES)
+    return c.reset_index(drop=True)
 
 
 def _bold(s: str) -> str:
@@ -340,12 +339,10 @@ def run_morning(ctx, fetch_fn=None):
         # cap note (from the FULL candidate set, pre-cap — like select_book)
         capped = None
         if len(picks):
-            n_up = int((picks["c945"] > picks["or15_h"]).sum())
-            n_dn = int((picks["c945"] < picks["or15_l"]).sum())
-            if n_up > THRESHOLD:
-                capped = f"{n_up} broke OR15 up -> kept 2 calmest"
-            elif n_dn > THRESHOLD:
-                capped = f"{n_dn} broke OR15 down -> kept 2 calmest"
+            n_conf = int(((picks["c945"] > picks["or15_h"]) |
+                          (picks["c945"] < picks["or15_l"])).sum())
+            if n_conf > MAX_DAY_TRADES:
+                capped = f"{n_conf} confirmed -> kept 2 calmest"
 
         msg = format_message(T, book, version, excluded, capped)
         ok = ctx["send"](msg) if ctx.get("send") else False
