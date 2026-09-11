@@ -82,6 +82,10 @@ def create_app(cfg=None, store=neon_store):
     def health():
         return "OK", 200
 
+    @app.get("/version")
+    def version():
+        return jsonify(version="2026-09-11.1-chain"), 200
+
     @app.post("/trigger/<job>")
     def trigger(job):
         if request.headers.get("X-Trigger-Secret") != cfg["TRIGGER_SECRET"]:
