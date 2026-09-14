@@ -133,6 +133,8 @@ def test_watchdog_status():
     assert watchdog_status("morning", "done", "done:2 signals")[0]
     assert watchdog_status("morning", "skipped", "skipped:weekend")[0]
     assert watchdog_status("evening", "skipped", "skipped:holiday")[0]
+    assert watchdog_status("morning", "skipped",
+                           "skipped:market-closed (inferred, not in holiday calendar)")[0]
     assert watchdog_status("morning", "running", None)[0]
     ok, v = watchdog_status("morning", "skipped", "skipped:too-early (09:40 bar)")
     assert not ok and "STUCK" in v, "unresolved too-early skip = missing signal"

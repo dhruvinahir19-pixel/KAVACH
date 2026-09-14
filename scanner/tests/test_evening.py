@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "engine"))
 sys.path.insert(0, str(ROOT / "scanner"))
 
 from kcore import clock, neon_store          # noqa: E402
+from kcore import market_calendar            # noqa: E402
 import evening                                # noqa: E402
 import harvest as engine_harvest              # noqa: E402
 
@@ -33,6 +34,28 @@ def _ctx(sent, alerts):
 
 def _freeze(y, m, d, hh=20, mm=5):
     clock._now = lambda: dt.datetime(y, m, d, hh, mm, tzinfo=clock.IST)
+
+
+def _day_from_store(day_iso):
+    """harvest_day()-shaped dict from the LOCAL research store — no live NSE
+    download (2026-09-14: the sandbox IP got NSE-403-blocked after heavy
+    verification use; tests must not depend on NSE archives being reachable,
+    and shouldn't burn NSE bandwidth on every run anyway)."""
+    import pandas as pd
+    root = ROOT / "engine" / "data"
+
+    def frame(name):
+        df = pd.read_csv(root / f"{name}.csv.gz")
+        return df[df["date"] == day_iso].copy()
+
+    def rowdict(name):
+        df = pd.read_csv(root / f"{name}.csv.gz")
+        r = df[df["date"] == day_iso].iloc[0]
+        return {k: (None if pd.isna(v) else v) for k, v in r.items() if k != "date"}
+
+    return {"cash": frame("cash"), "fut": frame("fut"), "opt": frame("opt"),
+            "part": {"date": day_iso, **rowdict("part")},
+            "mkt": {"date": day_iso, **rowdict("mkt")}}
 
 
 def _scrub_fake_day():
@@ -86,20 +109,48 @@ def test_off_schedule_raises():
         evening.run_evening(_ctx([], []))
 
 
-def test_not_posted_yet_skips():
+def test_not_posted_yet_skips(monkeypatch):
     _freeze(2026, 9, 10, 20, 5)
+    # market DID trade -> normal not-posted-yet ladder (no holiday inference)
+    monkeypatch.setattr(market_calendar, "market_traded_today",
+                        lambda t=None, **k: True)
     sent, alerts = [], []
     res = evening.run_evening(_ctx(sent, alerts), harvest_fn=lambda d: None)
     assert res == "skipped:not-posted-yet"
     assert not alerts
 
 
-def test_not_posted_after_ladder_fails_loud():
+def test_not_posted_after_ladder_fails_loud(monkeypatch):
     _freeze(2026, 9, 10, 22, 0)
+    monkeypatch.setattr(market_calendar, "market_traded_today",
+                        lambda t=None, **k: True)
     sent, alerts = [], []
     with pytest.raises(RuntimeError, match="bhavcopy missing"):
         evening.run_evening(_ctx(sent, alerts), harvest_fn=lambda d: None)
     assert any("MISSING" in a[1] for a in alerts)
+
+
+def test_unlisted_holiday_clean_skip(monkeypatch):
+    """P3-11 (2026-09-14 incident): holiday MISSING from the calendar ->
+    bhavcopy absent AND the independent check says market closed -> ONE info
+    note, clean skip, no error storm."""
+    _freeze(2026, 9, 21, 20, 5)            # plain Monday, not in holidays
+    monkeypatch.setattr(market_calendar, "market_traded_today",
+                        lambda t=None, **k: False)
+    sent, alerts = [], []
+    res = evening.run_evening(_ctx(sent, alerts), harvest_fn=lambda d: None)
+    assert res == "skipped:market-closed (inferred, not in holiday calendar)"
+    assert len(alerts) == 1 and "CLOSED" in alerts[0][1] and not sent
+
+
+def test_unlisted_holiday_check_unreachable_still_loud(monkeypatch):
+    """Independent check unreachable (None) -> the loud failure path stays."""
+    _freeze(2026, 9, 21, 22, 0)
+    monkeypatch.setattr(market_calendar, "market_traded_today",
+                        lambda t=None, **k: None)
+    sent, alerts = [], []
+    with pytest.raises(RuntimeError, match="bhavcopy missing"):
+        evening.run_evening(_ctx(sent, alerts), harvest_fn=lambda d: None)
 
 
 def test_fo_late_is_retry_not_failure():
@@ -116,7 +167,7 @@ def test_fo_late_is_retry_not_failure():
 
 def test_vix_missing_fails_loud_before_writes():
     _freeze(2099, 1, 5, 20, 5)
-    day = engine_harvest.harvest_day(dt.date(2026, 9, 9))
+    day = _day_from_store("2026-09-09")          # local fixture, no NSE
     sent, alerts = [], []
     with pytest.raises(RuntimeError, match="VIX unavailable"):
         evening.run_evening(_ctx(sent, alerts), harvest_fn=lambda d: day,
@@ -136,7 +187,7 @@ def test_full_path_on_fake_date():
     """Integration: real harvest relabeled to 2099-01-05 -> full pipeline ->
     watchlist rows + message; duplicate trigger overwrites identically."""
     _freeze(2099, 1, 5, 20, 5)
-    real = engine_harvest.harvest_day(dt.date(2026, 9, 9))
+    real = _day_from_store("2026-09-09")         # local fixture, no NSE
 
     def relabeled(d):
         day = {"cash": real["cash"].copy(), "fut": real["fut"].copy(),

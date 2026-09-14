@@ -15,7 +15,11 @@ from config import UA, url_cash, url_fo, url_participant, TMP
 
 
 def fetch(url, tries=3, sleep=1.0):
-    """GET with retry; returns bytes or None (404/holiday/soft-error)."""
+    """GET with retry; returns bytes or None (404/holiday/soft-error).
+    403 raises: an IP block must NOT look like 'file not posted' (P3-11b,
+    found live 2026-09-14: sandbox IP blocked after heavy verification use;
+    on a trading day a silent None would wait for the watchdog instead of
+    failing immediately)."""
     for i in range(tries):
         try:
             r = requests.get(url, headers={"User-Agent": UA}, timeout=30)
@@ -26,6 +30,9 @@ def fetch(url, tries=3, sleep=1.0):
                 return r.content
             if r.status_code == 404:
                 return None
+            if r.status_code == 403:
+                raise RuntimeError(f"NSE 403 Access Denied for {url} — "
+                                   f"IP blocked? (a block is NOT 'file absent')")
         except requests.RequestException:
             pass
         time.sleep(sleep * (i + 1))

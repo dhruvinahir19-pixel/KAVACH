@@ -108,7 +108,7 @@ def watchdog_status(kind, state, detail):
     if state is None:
         return False, f"MISSING: no {kind} job ran today at all"
     d = (detail or "")
-    if "weekend" in d or "holiday" in d:
+    if "weekend" in d or "holiday" in d or "market-closed" in d:
         return True, f"ok: {kind} skipped ({d})"
     return False, (f"STUCK-SKIPPED: {kind} last state '{d}' — the real run "
                    f"never happened")

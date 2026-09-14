@@ -222,9 +222,13 @@ class TestDataFailureAbort:
     def teardown_method(self):
         clock._now = lambda: dt.datetime.now(clock.IST)
 
-    def test_total_failure_aborts_not_flat(self):
-        """ALL fetches down -> loud abort; 'stay flat' must never be sent."""
+    def test_total_failure_aborts_not_flat(self, monkeypatch):
+        """ALL fetches down on a TRADING day -> loud abort; 'stay flat' must
+        never be sent. (Market-open check patched to True — no network.)"""
+        import morning
         from morning import run_morning
+        monkeypatch.setattr(morning.market_calendar, "market_traded_today",
+                            lambda t=None, **k: True)
         conn = neon_store.connect()                      # order-independent
         conn.execute("DELETE FROM signals WHERE dkey='2026-09-10'")
         conn.close()
@@ -241,6 +245,76 @@ class TestDataFailureAbort:
         n = conn.execute("SELECT count(*) FROM signals WHERE dkey='2026-09-10'").fetchone()[0]
         conn.close()
         assert n == 0
+
+    def test_unlisted_holiday_clean_skip(self, monkeypatch):
+        """P3-11 (2026-09-14 Ganesh Chaturthi incident): holiday MISSING from
+        the calendar -> all fetches fail -> independent check says market
+        CLOSED -> ONE info note, clean skip, no error storm, no signals."""
+        import morning
+        from morning import run_morning
+        monkeypatch.setattr(morning.market_calendar, "market_traded_today",
+                            lambda t=None, **k: False)
+        conn = neon_store.connect()
+        conn.execute("DELETE FROM signals WHERE dkey='2026-09-10'")
+        conn.close()
+        _freeze(2026, 9, 10, 9, 46)          # ordinary trading Thursday
+        sent, alerts = [], []
+
+        def dead_fetch(key):
+            raise RuntimeError("all sources empty/stale (market closed)")
+
+        res = run_morning(_ctx(sent, alerts), fetch_fn=dead_fetch)
+        assert res == "skipped:market-closed (inferred, not in holiday calendar)"
+        assert len(alerts) == 1 and "CLOSED" in alerts[0] and not sent
+        conn = neon_store.connect()
+        n = conn.execute("SELECT count(*) FROM signals WHERE dkey='2026-09-10'").fetchone()[0]
+        conn.close()
+        assert n == 0
+
+    def test_unlisted_holiday_check_unreachable_still_loud(self, monkeypatch):
+        """Independent check unreachable (None) or says market OPEN -> the
+        P3-06 loud abort is preserved (never silence)."""
+        import morning
+        from morning import run_morning
+        _freeze(2026, 9, 10, 9, 46)
+
+        def dead_fetch(key):
+            raise RuntimeError("down")
+
+        for verdict in (True, None):
+            monkeypatch.setattr(morning.market_calendar, "market_traded_today",
+                                lambda t=None, **k: verdict)
+            sent, alerts = [], []
+            with pytest.raises(RuntimeError, match="all morning fetches failed"):
+                run_morning(_ctx(sent, alerts), fetch_fn=dead_fetch)
+            assert alerts and not sent
+
+    def test_friday_list_carries_over_holiday(self):
+        """USER RULE (2026-09-14): Friday's watchlist trades the NEXT TRADING
+        DAY. Monday 2026-09-14 is a calendar holiday; Tuesday 2026-09-15 must
+        pick up Friday's (2026-09-11) watchlist — freshness guard must PASS
+        (watchlist dkey == last completed session)."""
+        from morning import run_morning
+        conn = neon_store.connect()
+        conn.execute("DELETE FROM signals WHERE dkey='2026-09-15'")
+        conn.close()
+        _freeze(2026, 9, 15, 9, 46)
+        sent, alerts = [], []
+        bars = [_bar(555, 10, 11, 9.5, 10.5), _bar(560, 10.5, 11.2, 10, 11),
+                _bar(570, 11, 13, 11, 12.5), _bar(575, 12.5, 14, 12, 13),
+                _bar(580, 13, 15, 13, 14.5)]            # all break OR15 up
+
+        res = run_morning(_ctx(sent, alerts), fetch_fn=lambda key: bars)
+        assert res.startswith("done:") or res.startswith("flat:")
+        assert sent and not alerts
+        assert "Cap: 10 confirmed" in sent[0]           # full-list confirm + strict-2
+        conn = neon_store.connect()
+        try:
+            n = conn.execute("SELECT count(*) FROM signals WHERE dkey='2026-09-15'").fetchone()[0]
+            assert n == 2, "strict-2 cap must hold on the carry-over day"
+        finally:
+            conn.execute("DELETE FROM signals WHERE dkey='2026-09-15'")
+            conn.close()
 
     def test_partial_failure_proceeds_with_note(self):
         """Some symbols down -> signal still sent, missing names listed."""

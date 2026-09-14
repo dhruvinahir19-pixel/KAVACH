@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT / "engine"))          # engine code (shared truth)
 sys.path.insert(0, str(ROOT / "scanner"))
 
 from kcore import clock, neon_store               # noqa: E402
+from kcore import market_calendar                # noqa: E402
 from kcore.eod_cache import get_cache             # noqa: E402
 import harvest as engine_harvest                  # noqa: E402
 from features_core import build_features          # noqa: E402
@@ -304,6 +305,16 @@ def run_evening(ctx, harvest_fn=None, vix_fn=None):
             return "skipped:not-posted-yet (FO lags cash)"   # P2-02: partial = not ready
         raise                                                # outside ladder: loud
     if day_raw is None:
+        # P3-11: an unlisted holiday never posts a bhavcopy. Before treating
+        # that as a failure, ask the independent market-open check.
+        # None/True = market traded (or unknown) -> normal ladder below.
+        if market_calendar.market_traded_today(T) is False:
+            ctx["alert"](
+                f"Market looks CLOSED today ({T}) — holiday missing from the "
+                f"calendar. No watchlist tonight; the last watchlist carries "
+                f"to the next trading day.", severity="INFO")
+            conn.close()
+            return "skipped:market-closed (inferred, not in holiday calendar)"
         if ladder_ended:
             ctx["alert"](f"bhavcopy MISSING for {T} after retry ladder — "
                          f"not a known holiday. Investigate NSE posting.", severity="ERROR")

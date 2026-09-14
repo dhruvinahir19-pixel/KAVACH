@@ -167,6 +167,47 @@ All preview items resolved plus the following observed/designed failure modes:
   every live test): NEVER hardcode calendar dates that eod_daily will grow
   past; derive expectations from the DB's current state.
 
+## P3-11 — Ganesh Chaturthi incident: unlisted-holiday error storm (2026-09-14, live)
+- **What happened**: Mon 2026-09-14 (Ganesh Chaturthi, NSE closed) was
+  missing from the holidays table — that table had been derived from PAST
+  data gaps and could not know FUTURE holidays (last entry 2026-06-26). The
+  morning job treated the closed market as a total data failure (P3-06
+  firing in the wrong situation): 3 attempts x [10 per-symbol fetch errors +
+  abort + FAILED] = ~36 error messages. The evening job would have stormed
+  too (bhavcopy never posts on a holiday).
+- **Fixes (all live 2026-09-14, version 2026-09-14.1-holiday)**:
+  1. CALENDAR: remaining official NSE 2026 holidays loaded (Sep 14 Ganesh
+     Chaturthi, Oct 02 Gandhi Jayanti, Oct 20 Dussehra, Nov 10
+     Diwali-Balipratipada, Nov 24 Guru Nanak, Dec 25 Christmas). LESSON:
+     verify the holiday table against the OFFICIAL NSE list — never trust a
+     gap-derived calendar for future dates. MAINTENANCE: NSE publishes the
+     next year's list around December — load it then (Muhurat trading
+     2026-11-08 is a Sunday special session — weekend gate already skips).
+  2. SAFETY NET kcore/market_calendar.py: before aborting on total fetch
+     failure, ask an INDEPENDENT source whether the market traded today —
+     NIFTY (^NSEI) 5m bars via Yahoo, DATE-of-newest-bar check only.
+     Not today -> market closed -> ONE INFO message +
+     "skipped:market-closed (inferred, not in holiday calendar)" (watchdog
+     ok). Unreachable -> None -> stays LOUD (P3-06 preserved — never
+     silence). Live-proven on the day itself: closed Monday -> False,
+     trading Friday -> True.
+  3. Morning per-symbol fetch errors are BUFFERED and flushed only if the
+     market is open/unknown — a closed market produces exactly ONE message,
+     never a storm. Partial failures keep per-symbol notes (unchanged).
+  4. Evening: same inference when bhavcopy is absent (day_raw None).
+  5. engine/harvest.py fetch: NSE 403 now RAISES immediately (an IP block
+     is NOT 'file absent'). Found live: the sandbox IP was NSE-403-blocked
+     after heavy verification use; production (Render IP) unaffected.
+     test_evening now uses a LOCAL fixture day from engine/data — no NSE
+     download per test run (faster, deterministic, no ban risk).
+- **Friday-list -> next-trading-day carry (user requirement, 2026-09-14)**:
+  already correct by design — the freshness guard requires watchlist dkey ==
+  last completed session; on Tuesday the Friday 2026-09-11 watchlist is the
+  latest and matches eod_mkt max, so it trades. Proven by live test
+  test_friday_list_carries_over_holiday (frozen Tue 2026-09-15 09:46:
+  Friday's list loads, strict-2 cap holds, 2 signals written+cleaned).
+  FIRST LIVE TRADE moved to Tue 2026-09-15 (smallest quantity).
+
 ## Phase P3.5 — live-data source map (measured 2026-09-10 night, all live probes)
 - **P4-06 Upstox source behaviors (measured)**:
   - public v3 intraday 5m: works after close (75 bars, == NSE closes) BUT goes

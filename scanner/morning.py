@@ -40,6 +40,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "engine"))
 
 from kcore import clock                                # noqa: E402
+from kcore import market_calendar                      # noqa: E402
 from kcore.neon_store import connect as db_connect     # noqa: E402
 from evening import load_holidays                      # noqa: E402
 
@@ -308,7 +309,7 @@ def run_morning(ctx, fetch_fn=None):
         isins = dict(conn.execute(
             "SELECT symbol, isin FROM universe WHERE symbol = ANY(%s)",
             (list(wl["symbol"]),)).fetchall())
-        excluded, picks = [], []
+        excluded, picks, fetch_errs = [], [], []
         for r in wl.itertuples():
             isin = isins.get(r.symbol)
             if not isin:
@@ -317,7 +318,10 @@ def run_morning(ctx, fetch_fn=None):
             try:
                 bars = (fetch_fn or fetch_intraday_bars)(f"NSE_EQ|{isin}")
             except Exception as e:                       # noqa: BLE001
-                ctx["alert"](f"morning fetch error {r.symbol}: {e}")
+                # P3-11: buffer, don't send yet — if the market turns out to
+                # be closed (unlisted holiday), one INFO message must be the
+                # ONLY message, not a per-symbol error storm.
+                fetch_errs.append(f"morning fetch error {r.symbol}: {e}")
                 excluded.append(r.symbol)
                 continue
             m = morning_metrics(bars)
@@ -330,9 +334,22 @@ def run_morning(ctx, fetch_fn=None):
 
         # total data failure must NEVER look like a genuine 'stay flat'
         if not len(picks) and len(excluded) == len(wl):
+            # P3-11: an unlisted holiday looks exactly like a total data
+            # failure (all sources empty or stale). Ask the independent
+            # market-open check before storming. None/True = stay loud (P3-06).
+            if market_calendar.market_traded_today(T) is False:
+                ctx["alert"](
+                    f"Market looks CLOSED today ({T}) — holiday missing from "
+                    f"the calendar. No signal, no trades. The watchlist "
+                    f"carries to the next trading day.", severity="INFO")
+                return "skipped:market-closed (inferred, not in holiday calendar)"
+            for msg in fetch_errs:
+                ctx["alert"](msg)
             ctx["alert"](f"morning data unavailable for ALL {len(wl)} watchlist "
                          f"stocks — aborting. Data failure is NOT a flat signal (P3-06).")
             raise RuntimeError("all morning fetches failed — aborted, no signal sent")
+        for msg in fetch_errs:      # partial failure: per-symbol notes as before
+            ctx["alert"](msg)
 
         book = confirm_book(picks) if len(picks) else pd.DataFrame()
 
