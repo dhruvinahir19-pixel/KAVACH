@@ -253,6 +253,49 @@ All preview items resolved plus the following observed/designed failure modes:
   (b) nifty_close cross-check vs Yahoo; (c) NSE unblocks usually lift in
   days — watch for direct fetch recovery.
 
+
+## P3-12b — Upstox FO reconstruction: the permanent NSE-block answer (probed live 2026-10-05/06 night)
+- **User requirement (firm)**: fully automatic, zero manual work, ever. No
+  home-PC relay, no file uploads. Accepted as the design bar.
+- **Probes (all live, all free)**:
+  - Instrument master: assets.upstox.com/market-quote/instruments/exchange/
+    complete.json.gz (3.3MB; column is trading_symbol, segment NSE_FO =
+    34,348 rows; FUT=653 contracts). Saved copy: upstox_fo_master_20261005.
+  - Public v2 historical DAY candles for FUT contracts include volume AND
+    oi (7 fields). PARITY vs Neon (RELIANCE 2026-10-01): nm_close,
+    nm_oi, fut_oi, fut_oi_chg EXACT; fut_vol = Upstox units / lot_size
+    (500) = NSE lots EXACT. All 3 contracts summed.
+  - Options via public per-instrument day candles (210 RELIANCE
+    instruments, 2-day window): ce/pe vol EXACT (lots conversion), oi_chg
+    EXACT, oi within 0.7% (no-trade strikes undercount), top3_conc
+    0.2998 vs 0.2991, call_build 0.5965 vs 0.5948.
+  - AUTH option-chain /v2/option/chain (Analytics token WORKS on this
+    endpoint): per strike oi, prev_oi (-> exact oi_chg), volume, ltp,
+    close, spot; ~48 strikes per call, one call per (symbol, expiry)
+    ~500 calls/night total -> replaces per-instrument fetches entirely.
+  - Index day candles (NSE_INDEX|Nifty 50 / Nifty Bank) public -> nifty/
+    banknifty close; NIFTY index option instruments -> nifty_pcr +
+    next_expiry (same method NSE uses).
+- **OPEN (must resolve before first fallback run)**: ce_val/pe_val (NSE
+  TtlTrfVal semantics for options look NOTIONAL-like, not premium; RELIANCE
+  CE -7.3% / PE -0.2% under notional-at-futures-close approximation) ->
+  feeds ONLY opt_vol_ratio (today / own 10d-median). Plan: 10-symbol x
+  5-day parity harness vs Neon, then either accept+flag, impute neutral
+  with flag, or exact formula if found. Fallback runs will flag
+  'FO-FALLBACK MODE' in the watchlist message.
+- **Fallback runtime budget**: ~600 public FUT calls (~3 min at 280/min) +
+  ~500 auth chain calls (25/min limit -> ~20 min) — inside the evening
+  window. Governor discipline like candles.py.
+- **Render->jina reachability UNKNOWN** (tonight's single failure could be
+  transient; test Tue evening; corslol/corsworkers alive-but-429 as backup
+  text routes). Cash+participants text files work via jina from sandbox.
+- **Next steps (Tue 2026-10-06)**: build kcore/upstox_fo.py + tests +
+  parity harness; wire as automatic FO fallback in evening.py (FO zip
+  unavailable -> Upstox path); deploy before 20:02. If ready before 09:15,
+  a local Oct-5 evening build can even rescue TUESDAY trading (frozen
+  clock, real pipeline); else Tuesday morning = safe stale-watchlist skip
+  (loud), Wednesday normal.
+
 ## Phase P3.5 — live-data source map (measured 2026-09-10 night, all live probes)
 - **P4-06 Upstox source behaviors (measured)**:
   - public v3 intraday 5m: works after close (75 bars, == NSE closes) BUT goes
