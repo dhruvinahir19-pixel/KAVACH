@@ -16,10 +16,20 @@ from config import UA, url_cash, url_fo, url_participant, TMP
 
 def fetch(url, tries=3, sleep=1.0):
     """GET with retry; returns bytes or None (404/holiday/soft-error).
-    403 raises: an IP block must NOT look like 'file not posted' (P3-11b,
-    found live 2026-09-14: sandbox IP blocked after heavy verification use;
-    on a trading day a silent None would wait for the watchdog instead of
-    failing immediately)."""
+    P3-12 (live 2026-10-05): NSE intermittently 403-blocks datacenter IPs
+    (Render + sandbox both blocked today; headers/warming don't help — full
+    IP-range block). Strategy:
+      - 404 -> None instantly (file not posted / holiday)
+      - 403 -> PATIENT retries (~40s apart — evening WAF storms are often
+        transient), then a r.jina.ai reader-proxy fallback (free, no key;
+        their servers aren't blocked). The proxy only returns TEXT, so it
+        works for the CSVs (cash bhavcopy, participants) and never for the
+        FO zip — validated by requiring a CSV-looking header after stripping
+        the wrapper.
+      - persistent 403 with no working fallback -> raise LOUD (a block is
+        NOT 'file absent'; P3-11b)."""
+    import time as _t
+    last_403 = None
     for i in range(tries):
         try:
             r = requests.get(url, headers={"User-Agent": UA}, timeout=30)
@@ -31,12 +41,44 @@ def fetch(url, tries=3, sleep=1.0):
             if r.status_code == 404:
                 return None
             if r.status_code == 403:
-                raise RuntimeError(f"NSE 403 Access Denied for {url} — "
-                                   f"IP blocked? (a block is NOT 'file absent')")
+                last_403 = r
+                if i < tries - 1:
+                    _t.sleep(40)           # patient: WAF storms clear
+                    continue
         except requests.RequestException:
             pass
-        time.sleep(sleep * (i + 1))
+        _t.sleep(sleep * (i + 1))
+    # 403 persisted (or network-dead): try the text-proxy fallback
+    if last_403 is not None:
+        proxied = _proxy_fetch(url)
+        if proxied is not None:
+            return proxied
+        raise RuntimeError(f"NSE 403 Access Denied for {url} — IP blocked? "
+                           f"(a block is NOT 'file absent')")
     return None
+
+
+CSV_HEADS = ("SYMBOL", "TradDt", "Instrument", "Date", "Participant",
+             "Client Type", "Record Type", "FUTVAL", "OPTVAL")
+
+
+def _proxy_fetch(url):
+    """r.jina.ai reader fallback for TEXT files. Returns verified CSV bytes
+    or None (zip/binary/unreachable -> None -> caller raises)."""
+    import requests as _rq
+    try:
+        r = _rq.get(f"https://r.jina.ai/{url}", timeout=120,
+                    headers={"User-Agent": UA})
+        if r.status_code != 200:
+            return None
+        lines = r.text.splitlines()
+        start = next((i for i, l in enumerate(lines)
+                      if l.startswith(CSV_HEADS)), None)
+        if start is None:
+            return None                    # not a CSV (e.g. zip) or error page
+        return ("\n".join(lines[start:]) + "\n").encode()
+    except Exception:                      # noqa: BLE001
+        return None
 
 
 # ------------------------------------------------------------------ parsers

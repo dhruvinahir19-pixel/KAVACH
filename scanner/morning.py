@@ -304,6 +304,18 @@ def run_morning(ctx, fetch_fn=None):
         if str(last_session) != wl_dkey:
             raise RuntimeError(f"stale watchlist {wl_dkey} vs last session "
                                f"{last_session} — evening job did not complete (P3-04)")
+        # P3-12: the equality guard above passes even when watchlist AND eod
+        # froze together (evening job failed -> no new data, no new list —
+        # observed live 2026-10-05). Independent check: Yahoo NIFTY says the
+        # previous session is X; the watchlist must be from X.
+        prev_sess = market_calendar.previous_session(T)
+        if prev_sess and prev_sess != wl_dkey:
+            ctx["alert"](
+                f"STALE WATCHLIST — last trading session was {prev_sess} but "
+                f"the watchlist is from {wl_dkey} (evening job did not "
+                f"complete). NOT trading on stale picks.", severity="ERROR")
+            raise RuntimeError(f"stale watchlist {wl_dkey} — previous session "
+                               f"was {prev_sess} (P3-12)")
 
         # ---- fetch live bars for the picks
         isins = dict(conn.execute(

@@ -208,6 +208,51 @@ All preview items resolved plus the following observed/designed failure modes:
   Friday's list loads, strict-2 cap holds, 2 signals written+cleaned).
   FIRST LIVE TRADE moved to Tue 2026-09-15 (smallest quantity).
 
+## P3-12 — NSE IP-block incident + stale-watchlist guard (2026-10-05, live)
+- **What happened**: Mon 2026-10-05 20:02, the evening job failed 3x in one
+  minute — NSE returned 403 Access Denied for the bhavcopy (all 3 URLs;
+  Render's AWS IP). The sandbox IP was also fully blocked (even the NSE
+  homepage; headers/session-warming don't help — a datacenter-IP-range
+  block, NSE's periodic crackdown). The P3-11b 403-raise hardening worked
+  (loud, immediate, correct — the market DID trade today so the
+  market-closed inference rightly did not apply). User got 3 job-FAILED
+  ERRORs + 1 watchdog ERROR — alarms correct, no silence.
+- **Diagnosis measured live**: r.jina.ai (free reader proxy) CAN fetch NSE
+  text CSVs from its own servers — cash bhavcopy verified GENUINE against
+  Yahoo closes to the paisa (RELIANCE/TCS/SBIN 1186.40/2114.40/958.00) and
+  participants CSV works; the FO bhavcopy is a ZIP (binary) which no free
+  proxy returns (jina 422, codetabs/allorigins 522, corsproxy now needs a
+  paid key). Evening worked fine Sep 15..Oct 1 → block began Oct 5-ish.
+- **Fixes (version 2026-10-05.1-nseblock)**:
+  1. engine/harvest.fetch: 403 -> PATIENT retries (~40s apart, WAF storms
+     are transient), then r.jina.ai TEXT fallback for CSVs (wrapper
+     stripped, content validated to start with a CSV header — zips never
+     qualify), then LOUD raise. 404 still = None instantly.
+  2. ACCEPTED RISK (until hardened): proxied cash/participants data passes
+     the existing gates (file_date == requested day, sanity row minimums,
+     nifty_close) but no independent price cross-check yet — PLAN: verify
+     nifty_close vs Yahoo ^NSEI inside run_evening (follow-up).
+  3. kcore/market_calendar.previous_session(): last trading session before
+     today from independent Yahoo NIFTY bars.
+  4. morning STALE-WATCHLIST GUARD: the old freshness check (watchlist dkey
+     == eod last session) PASSES even when the evening job failed — watchlist
+     AND eod freeze together (observed: wl=eod=2026-10-01 while the true
+     previous session was 2026-10-05 → Tuesday would have traded Thursday's
+     list silently). New: previous_session(T) must equal wl_dkey, else loud
+     alert + refusal. Yahoo unreachable -> guard skipped (never blocks
+     trading on a Yahoo outage).
+  5. test_evening full-path assertion de-hardcoded (P3-10c lesson again:
+     #1 pick flipped IDEA -> PAYTM when Sep 15..Oct 1 sessions landed).
+  6. Emergency manual path while FO zip is blocked: user downloads the FO
+     zip in a browser (residential IP — never blocked) and uploads it;
+     run_evening_local.py assembles jina(cash) + user-zip(FO) + jina(part)
+     through the REAL evening pipeline (gates, Neon writes, Telegram).
+- **Open items**: (a) if the block persists, evenings are PARTIALLY
+  autonomous (cash+part via proxy; FO fails loud) until an FO route exists
+  (discuss: Upstox-derived FO? user zip nightly? wait out the block?);
+  (b) nifty_close cross-check vs Yahoo; (c) NSE unblocks usually lift in
+  days — watch for direct fetch recovery.
+
 ## Phase P3.5 — live-data source map (measured 2026-09-10 night, all live probes)
 - **P4-06 Upstox source behaviors (measured)**:
   - public v3 intraday 5m: works after close (75 bars, == NSE closes) BUT goes

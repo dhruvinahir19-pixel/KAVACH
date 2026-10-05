@@ -22,6 +22,15 @@ LIVE = pytest.mark.skipif(not os.environ.get("NEON_DATABASE_URL"),
                           reason="live NEON_DATABASE_URL not set")
 
 
+@pytest.fixture(autouse=True)
+def _skip_prev_session(monkeypatch):
+    """P3-12 guard off by default in tests (no live Yahoo in the suite);
+    the dedicated guard tests below patch real values explicitly."""
+    import morning as _m
+    monkeypatch.setattr(_m.market_calendar, "previous_session",
+                        lambda t=None, **k: None)
+
+
 # ---------------------------------------------------------------- bar math
 def _bar(mod, o, h, l, c, v=100):
     return (mod, o, h, l, c, v)
@@ -375,3 +384,49 @@ def test_strict2_cap_across_sides():
     assert len(book) == 2
     # range20: S2=0.028 S1=0.046 L1=0.952 L2=1.923 -> keep S2 and S1
     assert sorted(book["symbol"]) == ["S1", "S2"]
+
+
+@LIVE
+class TestStaleWatchlistGuard:
+    """P3-12 (2026-10-05 incident): evening job failed -> watchlist AND eod
+    froze together -> the old equality guard passes -> morning would trade a
+    stale list silently. The new guard asks Yahoo (independent) for the true
+    previous session and refuses loudly on mismatch."""
+
+    def _bars(self):
+        return [_bar(555, 10, 11, 9.5, 10.5), _bar(560, 10.5, 11.2, 10, 11),
+                _bar(570, 11, 13, 11, 12.5), _bar(575, 12.5, 14, 12, 13),
+                _bar(580, 13, 15, 13, 14.5)]
+
+    def teardown_method(self):
+        clock._now = lambda: dt.datetime.now(clock.IST)
+        conn = neon_store.connect()
+        conn.execute("DELETE FROM signals WHERE dkey='2026-09-10'")
+        conn.close()
+
+    def test_stale_watchlist_refuses_loudly(self, monkeypatch):
+        """Watchlist 2026-09-09 but the true previous session was 09-08
+        (evening of 09-09 failed) -> raise + alert, NO signal sent."""
+        import morning
+        monkeypatch.setattr(morning.market_calendar, "previous_session",
+                            lambda t=None, **k: "2026-09-08")
+        _freeze(2026, 9, 10, 9, 46)
+        sent, alerts = [], []
+        with pytest.raises(RuntimeError, match="stale watchlist"):
+            morning.run_morning(_ctx(sent, alerts), fetch_fn=lambda k: self._bars())
+        assert alerts and not sent
+        conn = neon_store.connect()
+        n = conn.execute("SELECT count(*) FROM signals WHERE dkey='2026-09-10'").fetchone()[0]
+        conn.close()
+        assert n == 0
+
+    def test_fresh_watchlist_proceeds(self, monkeypatch):
+        """Previous session == watchlist date -> normal run (guard passes)."""
+        import morning
+        monkeypatch.setattr(morning.market_calendar, "previous_session",
+                            lambda t=None, **k: "2026-09-09")
+        _freeze(2026, 9, 10, 9, 46)
+        sent, alerts = [], []
+        res = morning.run_morning(_ctx(sent, alerts), fetch_fn=lambda k: self._bars())
+        assert res.startswith(("done:", "flat:"))
+        assert sent and not alerts

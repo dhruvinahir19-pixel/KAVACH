@@ -58,3 +58,25 @@ def _fetch():
     r = requests.get(YAHOO_NIFTY, headers=UA, timeout=(5, 10))
     r.raise_for_status()
     return r.json()
+
+
+def previous_session(today_iso=None, *, json_resp=None):
+    """The last TRADING session strictly before today, from the same
+    independent Yahoo NIFTY data ('2026-10-05'). None = cannot determine
+    (caller must then rely on its other guards — never block trading on a
+    Yahoo outage). P3-12: catches a silently-stale watchlist when the
+    evening job failed but watchlist AND eod dates froze together (the
+    equality guard alone passes in that case)."""
+    today_iso = today_iso or clock.today_key()
+    try:
+        resp = json_resp if json_resp is not None else _fetch()
+        stamps = (resp.get("chart", {}).get("result")
+                  and resp["chart"]["result"][0].get("timestamp"))
+        if not stamps:
+            return None
+        days = {dt.datetime.fromtimestamp(t, dt.timezone.utc)
+                .astimezone(clock.IST).date().isoformat() for t in stamps}
+        before = [d for d in days if d < today_iso]
+        return max(before) if before else None
+    except Exception:                        # noqa: BLE001
+        return None

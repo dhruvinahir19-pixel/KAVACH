@@ -53,3 +53,30 @@ def test_empty_payload_returns_none():
                                   json_resp={"chart": {"result": [{}]}}) is None
     assert mc.market_traded_today("2026-09-14",
                                   json_resp={"chart": {"result": []}}) is None
+
+
+# ------------------------------------------------------- previous_session
+def _stamps(*pairs):                    # (day, hour-UTC)
+    return [int(dt.datetime(y, m, d, h, tzinfo=dt.timezone.utc).timestamp())
+            for y, m, d, h in pairs]
+
+
+def test_previous_session_skips_today():
+    # bars Mon 10-05 (today) + Fri 10-02 + Thu 10-01 -> previous = 10-02
+    resp = {"chart": {"result": [{"timestamp":
+           _stamps((2026, 10, 1, 4), (2026, 10, 2, 4), (2026, 10, 5, 4))}]}}
+    assert mc.previous_session("2026-10-05", json_resp=resp) == "2026-10-02"
+
+
+def test_previous_session_after_holiday_weekend():
+    # today Mon 09-15; bars Fri 09-11 only (09-14 Ganesh holiday) -> 09-11
+    resp = {"chart": {"result": [{"timestamp":
+           _stamps((2026, 9, 11, 4), (2026, 9, 15, 4))}]}}
+    assert mc.previous_session("2026-09-15", json_resp=resp) == "2026-09-11"
+
+
+def test_previous_session_unreachable_none(monkeypatch):
+    def boom():
+        raise requests.RequestException("down")
+    monkeypatch.setattr(mc, "_fetch", boom)
+    assert mc.previous_session("2026-10-05") is None

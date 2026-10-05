@@ -206,7 +206,12 @@ def test_full_path_on_fake_date():
                               vix_fn=lambda a, b: vdf)
     assert res.startswith("done:"), f"full path failed: {res}"
     assert not alerts
-    assert sent and "🌙" in sent[0] and "1️⃣ IDEA" in sent[0]
+    # structure, not symbols: WHICH stock is #1 depends on the rolling
+    # 480-session window, which moves as real sessions land in eod_daily
+    # (P3-10c lesson — observed again 2026-10-05 when Sep 15..Oct 1 arrived
+    # and #1 flipped IDEA -> PAYTM)
+    assert sent and "🌙" in sent[0] and "𝟭𝟬 𝗽𝗶𝗰𝗸𝘀" in sent[0]
+    assert "1️⃣" in sent[0] and "🔟" in sent[0]
 
     conn = neon_store.connect()
     n = conn.execute("SELECT count(*) FROM eod_daily WHERE date=%s", (FAKE_MON,)).fetchone()[0]
